@@ -55,8 +55,7 @@ def main():
         
 #         response = send_packet_to_tracker(sock, host, port, f.tobytes()) nothing
         response = send_packet_to_tracker(sock, host, port, connection_packet)
-        print "response received"
-        print response
+        print "Response: " + response
 
 def send_packet_to_tracker(sock, host, port, packet):
     
@@ -67,29 +66,13 @@ def send_packet_to_tracker(sock, host, port, packet):
         try:
             print "trying"
             response, address = sock.recvfrom(10*1024)
-            print response
-            print address
             return response, address
             
         except socket.error:
-#             print socket.error
-#             print "excepting"
-#             if socket.error.errno == errno.EAGAIN:
-#             print "here3"
-#             print type(response)
-#             print address
-#             print "here4"
-    
-#                 if response is -1: # LESS THAN 16 bytes, or transaction id is incorrect, or action is incorrect
+            print 'excepting'
+#           if response is -1: # LESS THAN 16 bytes, or transaction id is incorrect, or action is incorrect
             time.sleep(1)#15 * 2**n)
             sock.sendto(packet, (host, port))
-            print "here5"
-    #                 else: 
-#                     # store the connection id they sent back
-#                     print "here6"
-#                     return response
-        
-            
             
 
 if __name__ == '__main__':
