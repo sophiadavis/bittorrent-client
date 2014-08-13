@@ -3,6 +3,21 @@ import re
 
 def main():
     print "Hello world"
+
+class MetainfoFile:
+    def __init__(self, file_name):
+        self.file_name = file_name
+        self.text = read_binary_file(file_name)
+        self.decoded = decode(self.text)
+    
+def read_binary_file(file_name):
+    with open(file_name, "rb") as f:
+        byte = f.read(1)
+        data = byte
+        while byte != "":
+            byte = f.read(1)
+            data += byte
+    return data   
         
 def decode(message):
     current = message[0]        

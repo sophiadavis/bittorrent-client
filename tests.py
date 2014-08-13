@@ -78,7 +78,7 @@ class BencodeTests(unittest.TestCase):
             if type(value) is not OrderedDict:
                 print key + ' : ' + str(value)
             else:
-                print '------'
+                print key + ' : '
                 for key2, value2 in value.iteritems():
                     print '------' + key2 + ' : ' + str(value2)
                     
