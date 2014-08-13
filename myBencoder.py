@@ -1,18 +1,5 @@
+from collections import OrderedDict
 import re
-
-# class BenDecoder:
-
-wrapped_list_pattern = re.compile(r"(l.*e)")
-unwrapped_list_pattern = re.compile(r"l(.*)e")
-
-wrapped_int_pattern = re.compile(r"(i-?\d*e)")
-unwrapped_int_pattern = re.compile(r"i(-?\d*)e")
-
-# wrapped_string_pattern = re.compile(r"(\d+:.*)") #r"(\d+:.*)([\dlied]:.*)"
-wrapped_string_pattern = re.compile(r"(\d+:.*)$|\d+:")
-wrapped_string_pattern = re.compile(r"(\d+:.*)")
-unwrapped_string_pattern = re.compile(r"\d+:(.*)")
-# unwrapped_string_pattern = re.compile(r"\d+:(.*)($|(\d+:))")
 
 def main():
     print "Hello world"
@@ -20,62 +7,82 @@ def main():
 # d4:spaml1:a1:bee' represents the dictionary { "spam" => [ "a", "b" ] } 
     
 def decode(message):
-    print message
-    while message:
-        # 'unwrap' datastructure from outside in
-        if message[0] == 'l':
-            list_match = re.match(wrapped_list_pattern, message)
-            return_if_none(list_match)
-            return decode_list(list_match.group(1))
-        elif message[0] == 'i':
-            int_match = re.match(wrapped_int_pattern, message)
-            return_if_none(int_match)
-            return decode_int(int_match.group(1))
-        else: # string
-            str_match = re.match(wrapped_string_pattern, message)
-            return_if_none(str_match)
-            return decode_strings(str_match.group(1))
-
-def decode_strings(b_str):
-    str_list = []
-    while b_str:
-        print "str_list is " + str(str_list)
-        c = b_str.find(':')
-        b_str = b_str[c + 1 :]
-        c2 = b_str.find(':')
-        print c, c2
-        if c2 < 0:
-            print "if  "
-            print b_str
-            str_list.append(b_str)
-            break
-        else:
-            print "else  "
-            print b_str[ : c2]
-            m = re.match(r"^(\D*)", b_str[ : c2])
-            return_if_none(m)
-            str_list.append(m.group(1))
-    return str_list
-#     str_match = re.match(unwrapped_string_pattern, b_str) # returns None if no match
-#     return_if_none(str_match)
-#     return str_match.group(1)
-
-def decode_int(b_int):
-    int_match = re.match(unwrapped_int_pattern, b_int)
-    return_if_none(int_match)
-    return int(int_match.group(1))
-
-def decode_list(b_list):
-    decoded = []
-    contents = re.match(unwrapped_list_pattern, b_list)
-    return_if_none(contents)
-    item = decode(contents.group(1))
-    while item:
-        decoded.append(item)
-    return decoded
+    print 'Starting with: ' + message
+    current = message[0]        
+    if current is 'd':
+        print "** DICT"
+        token = OrderedDict()
+        
+        i = 1
+        while message[i] is not 'e':
+            key, rest = decode_next_string(message[i : ])
+            value, rest = decode(rest)
+            token[key] = value
+            message = rest
+            i = 0
+        print "From dict: " + str(token) + ' ' + rest
+        return token, rest[1 : ] # skip the dict's 'e'
     
-def return_if_none(match):
-    if match is None:
-        print "No match!"
-        return None
+    elif current is 'l':
+        print "** LIST"
+        token = []
+        
+        i = 1
+        while message[i] is not 'e':
+            item, rest = decode(message[i : ])
+            print item, rest
+            token.append(item)
+            message = rest
+            i = 0
+        print "From list: " + str(token) + ' ' + rest[1 : ]
+        return token, rest[1 : ] # skip the list's 'e'
+    
+    else:
+        token, rest = decode_next_unit(message)
+        print "From else: " + str(token) + ' ' + rest
+        return token, rest 
+                
+            
+def decode_next_unit(message):
+    current = message[0]
+    if current is 'i':
+        print "** INT"
+        token, rest = decode_next_int(message)
+    
+    elif current.isdigit():
+        print "** STRING"
+        token, rest = decode_next_string(message)
+        message = rest
+    
+    else:
+        token = 'oops'
+        rest = message
+        print "MISTAKE"
+        
+    return token, rest
+
+def decode_next_string(message):
+    l = re.match(r"^(\d*):", message).group(1) # there is at least one digit, so this can't be None
+    l = int(l)
+    
+    colon = message.find(':')
+    
+    decoded = message[(colon + 1) : (colon + l + 1)]
+    rest = message[(colon + l + 1) : ]
+    
+    return decoded, rest
+
+def decode_next_int(message):
+    int_str = ''
+    i = 1
+    while message[i] is not 'e':
+        int_str += message[i]
+        i += 1;
+    return int(int_str), message[(i + 1) : ]
+
+def decode_next_list(message, sofar):
+    pass
+
+def decode_next_dict(message, sofar):
+    pass
         
