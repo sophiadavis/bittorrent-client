@@ -54,8 +54,8 @@ def main():
         print "------"
         
 #         response = send_packet_to_tracker(sock, host, port, f.tobytes()) nothing
-        response = send_packet_to_tracker(sock, host, port, connection_packet)
-        print "Response: " + response
+        response, address = send_packet_to_tracker(sock, host, port, connection_packet)
+        print "Response: " + str(response)
 
 def send_packet_to_tracker(sock, host, port, packet):
     
