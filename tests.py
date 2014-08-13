@@ -1,5 +1,5 @@
+from collections import OrderedDict
 import unittest
-import re
 
 import myBencoder
 
@@ -71,17 +71,16 @@ class BencodeTests(unittest.TestCase):
         self.assertEqual(decoded_dict.keys(), ['length', 'path'])
         self.assertEqual(decoded_dict.values(), [291, ['Distributed by Mininova.txt']])       
     
-    def test_it_decodes_nested_dicts(self):
-        pass
-        
     def test_it_decodes_actual_bittorrent_files(self):
         decoded_dict, rest = myBencoder.decode(self.torrent)
-        for key, value in decoded_dict.iteritems():
-            print key + ' : ' + str(value)
         self.assertTrue(decoded_dict.keys())
-#         self.assertEqual(decoded_dict.keys(), ['length', 'path'])
-#         self.assertEqual(decoded_dict.values(), [291, ['Distributed by Mininova.txt']])       
-    
+        for key, value in decoded_dict.iteritems():
+            if type(value) is not OrderedDict:
+                print key + ' : ' + str(value)
+            else:
+                print '------'
+                for key2, value2 in value.iteritems():
+                    print '------' + key2 + ' : ' + str(value2)
                     
         
 if __name__ == '__main__':
