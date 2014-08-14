@@ -25,14 +25,17 @@ def main():
 #     port = 80
     host = 'thomasballinger.com';
     port = 6969;
+#     host = 'udp://xbtt.sourceforge.net'
+#     port = 2710
     
     while(1):                 
-        connection_id = 41727101980 # as64 bit integer (random?)
-        action = 0 # 32 bit integer -- 0 for connect -- OFFSET 8
-        transaction_id = random.getrandbits(31) # 32 bit int -- OFFSET 12
+        connection_id_hex = 41727101980 # as 64 bit integer (random?)
+        connection_id_dec = 4497486125440
+        action = 0 # 0 for connect 32 bit integer
+        transaction_id = random.getrandbits(31) # random 32 bit int
         
         s = struct.Struct('>qii')
-        struct_connection_packet = s.pack(connection_id, action, transaction_id) # > for big endian, q for 64 bit int, i for 32 bit int
+        struct_connection_packet = s.pack(connection_id_dec, action, transaction_id) # > for big endian, q for 64 bit int, i for 32 bit int
                  
         connection_packet = binascii.hexlify(struct_connection_packet)
         
@@ -42,20 +45,25 @@ def main():
         
         print "------"
         
-        num = "uintbe:64={0}".format(connection_id)
+#         num = "uintbe:64={0}".format(connection_id)
+#         f = bitstring.BitArray(num)
+#         f = bitstring.BitArray("0x{0}".format(connection_id_hex))
+        num = "uintbe:64={0}".format(connection_id_dec)
         f = bitstring.BitArray(num)
         f.append("uintbe:32={0}".format(action)) 
         f.append("uintbe:32={0}".format(transaction_id))
         
-        print f
-        print len(f)
-        print f.tobytes()
+        print "f: " + str(f)
+        print "size: " + str(len(f))
+        print "f bytes: " + f.tobytes()
         
         print "------"
         
-#         response = send_packet_to_tracker(sock, host, port, f.tobytes()) nothing
-        response, address = send_packet_to_tracker(sock, host, port, connection_packet)
+#         response = send_packet_to_tracker(sock, host, port, f.tobytes()) # nothing
+        response, address = send_packet_to_tracker(sock, host, port, struct_connection_packet)
+        print "******************************************"
         print "Response: " + str(response)
+        print "******************************************"
 
 def send_packet_to_tracker(sock, host, port, packet):
     
