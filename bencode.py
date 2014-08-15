@@ -12,6 +12,9 @@ class Torrent:
         self.file_name = file_name
         self.bencoded_text = read_binary_file(file_name)
         self.parsed_text = decode(self.bencoded_text)[0]
+        self.parsed_info_hash = self.parsed_text['info']
+        self.bencoded_info_hash = encode(self.parsed_text['info'])
+        self.total_length = self.get_total_length()
         
     def __str__(self):
         decoded_text = ''
@@ -23,11 +26,12 @@ class Torrent:
                 for key2, value2 in value.iteritems():
                     decoded_text = decoded_text + '------' + key2 + ' : ' + str(value2) + '\n'
         return decoded_text
-    
-#     def info_hash(self):
-#         
 
-    
+    def get_total_length(self):
+        total_length = 0
+        for file in self.parsed_info_hash['files']:
+            total_length += file['length']
+        return total_length
     
 def read_binary_file(file_name):
     ''' Reads bytes from given file, returns binary string ''' 

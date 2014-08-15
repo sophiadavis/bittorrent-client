@@ -160,6 +160,17 @@ class BencodeTests(unittest.TestCase):
         t = bencode.Torrent(self.walden)
         encoded_torrent = bencode.encode(t.parsed_text)
         self.assertEqual(t.bencoded_text, encoded_torrent)
-        
+    
+    # dumb test
+    def test_it_can_return_info_hash(self):
+        t = bencode.Torrent(self.walden)
+        self.assertIsNotNone(t.bencoded_info_hash)
+    
+    # dumb test
+    def test_it_calculates_total_length(self):
+        t = bencode.Torrent(self.walden)
+        self.assertGreater(t.total_length, 0) # test on single file torrent 
+    
+
 if __name__ == '__main__':
     unittest.main()
