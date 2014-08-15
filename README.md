@@ -7,3 +7,5 @@ Summer 2014
 ----------
 
 This program uses UDP protocol to connect to trackers and download files.
+
+It's a work-in-progress.
