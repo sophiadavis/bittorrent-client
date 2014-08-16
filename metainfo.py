@@ -1,12 +1,13 @@
+# import binascii
 from collections import OrderedDict
 import re
 
 def main():
-    t = Torrent('../../Wer ist wer bei Conny Van Ehlsing ... Gaijin PDF [mininova].torrent')
+    t = MetainfoFile('../../Wer ist wer bei Conny Van Ehlsing ... Gaijin PDF [mininova].torrent')
     print t
     
 
-class Torrent:
+class MetainfoFile:
     ''' Represents information contained in a .torrent file '''
     def __init__(self, file_name):
         self.file_name = file_name
@@ -14,7 +15,6 @@ class Torrent:
         self.parsed_text = decode(self.bencoded_text)[0]
         self.parsed_info_hash = self.parsed_text['info']
         self.bencoded_info_hash = encode(self.parsed_text['info'])
-        self.total_length = self.get_total_length()
         
     def __str__(self):
         decoded_text = ''
@@ -32,6 +32,19 @@ class Torrent:
         for file in self.parsed_info_hash['files']:
             total_length += file['length']
         return total_length
+    
+    def get_announce_url_and_port(self):
+        parsed = self.parsed_text['announce'].rstrip('/announce')
+        port_index = parsed.rfind(':')
+        slash_index = parsed.rfind('/')
+        url = parsed[slash_index + 1 : port_index]
+        port = parsed[port_index + 1 :]
+        try:
+            port = int(port)
+        except ValueError as e:
+            # TODO???
+            pass
+        return url, port
     
 def read_binary_file(file_name):
     ''' Reads bytes from given file, returns binary string ''' 

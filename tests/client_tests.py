@@ -1,12 +1,13 @@
 import binascii
-import client
 import struct
 import unittest
+
+import client
 
 class ClientTests(unittest.TestCase):
     
     def setUp(self):
-        self.client = client.Client('../../walden.torrent')
+        self.client = client.Client()
         self.connection_packet = self.client.make_connection_packet()
     
     def test_it_makes_a_16_byte_connection_packet(self):
