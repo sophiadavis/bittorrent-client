@@ -1,5 +1,6 @@
 import binascii
 import os
+import random
 import struct
 import unittest
 
@@ -36,6 +37,12 @@ class ClientTests(unittest.TestCase):
         packet = self.client.make_announce_packet(1, os.urandom(20))
         self.assertEqual(len(packet), 98)
     
+    def test_client_resets_connection_id_after_response(self):
+        new_connection_id = random.randint(0, 127)
+        response = client.pack_packet('>iiq', 0, self.client.current_transaction_id, new_connection_id)
+        status = self.client.check_packet(0, response)
+        self.assertEqual(status, 0)
+        self.assertEqual(self.client.connection_id, new_connection_id)
         
 #     def test_announce_packet_contains_current_connection_id(self):
 #         
