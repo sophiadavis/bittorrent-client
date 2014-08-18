@@ -41,9 +41,7 @@ class Session(object):
         self.check_status(announce_status, "announce")
         
         peer_list = self.client.get_list_of_peers(announce_response)
-        
-        print peer_list
-        
+                
         for i, peer in enumerate(peer_list):
             if peer[1] < 0:
                 continue
@@ -51,13 +49,14 @@ class Session(object):
                 current_peer = peer_list[i]
                 peer = self.client.send_handshake(current_peer, self.metainfo_file.bencoded_info_hash)
                 if not peer: 
-                    print "no res"   
+                    print "*Peer not valid.\n"   
                     continue
                 else:
-                    print "got a valid peer"
-                    print peer.peer_ip
-                    print peer.peer_port
-                    print peer.peer_id
+                    print "*Peer valid:"
+                    print "\tIP: " + str(peer.peer_ip)
+                    print "\tPort: " + str(peer.peer_port)
+                    print "\tPeer ID: " + str(peer.peer_id)
+                    print
               
         self.sock.close()
 
@@ -65,7 +64,6 @@ class Session(object):
         if status < 0:
             print "Session: " + failure
             sys.exit(1)
-        print 'Success!'
 
 def main():
     s = Session('../../walden.torrent')

@@ -32,7 +32,7 @@ class Client(object):
                     return response
             
                 except socket.error as e:
-                    print 'Excepting...'
+                    print 'Excepting...\n'
                     sock = args[1]
                     sock.settimeout(1) # n
 #                     time.sleep(1)  # (15 * 2**n)
@@ -87,14 +87,13 @@ class Client(object):
             print 'Transaction id mismatch!' 
             return -1 
         else:
-            print 'Exchange successful!'
             if action_recd == 0:
-                print 'Connect packet -- Resetting connection id.'
+                print 'Connect packet received -- Resetting connection id.\n'
                 connection_id_recd = unpack_binary_string('>q', response[8:])[0]
                 self.connection_id = connection_id_recd
                 return 0
             elif action_recd == 1:
-                print 'Announce packet -- Getting peers.'
+                print 'Announce packet received.\n'
                 return 0
             elif action_recd == 3:
                 parse_error_packet(response)
@@ -172,14 +171,14 @@ class Client(object):
         if num_bytes < 20:
             print "Error in getting peers"
         else:            
-            interval, num_leechers, num_seeders = unpack_binary_string('>iii', response[8:20])
-            print str((interval, num_leechers, num_seeders))
+            interval, num_leechers, num_peers = unpack_binary_string('>iii', response[8:20])
             peers = []
-            for n in xrange(num_seeders):
+            for n in xrange(num_peers):
                 peer_start_index = (20 + 6 * n)
                 peer_end_index = peer_start_index + 6
                 ip, port = unpack_binary_string('>ih', response[peer_start_index : peer_end_index])
                 peers.append((ip, port))
+            print "Returning list of %i peers (ip, port).\n" % num_peers
             return peers
             
         
