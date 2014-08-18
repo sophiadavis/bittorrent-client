@@ -13,6 +13,7 @@ import time
 import urllib
 
 from metainfo import *
+from peer_connection import *
 
 
 class Client:
@@ -188,7 +189,57 @@ class Client:
         # 32 -- action = 3
         # 32 -- transaction id
         # 8 -- error string
-
+    
+        
+    def send_handshake(self, peer, bencoded_info_hash):
+        ip = socket.inet_ntoa(struct.pack(">i", peer[0]))
+        port = peer[1]
+        
+        sock = self.open_socket_with_timeout(1, type = 'tcp')
+    
+        info_hash = hashlib.sha1(bencoded_info_hash).digest()
+        handshake = self.make_handshake(info_hash)
+#         from pudb import set_trace; set_trace()
+        try:
+            sock.connect((ip, port))
+            sock.send(handshake)
+            response_handshake, address = sock.recvfrom(1024)
+            peer_id = self.verify_response_handshake(response_handshake, info_hash)
+            if peer_id:
+                peer = PeerConnection(ip, port, peer_id, sock)
+                return peer
+        except socket.error:
+            return False
+        
+    
+    def make_handshake(self, info_hash):
+        '''<pstrlen><pstr><reserved><info_hash><peer_id>'''
+        pstr = 'BitTorrent protocol'
+        pstrlen = pack_binary_string('>b', len(pstr))
+        reserved = pack_binary_string('>8b', 0, 0, 0, 0, 0, 0, 0, 0)
+        handshake_packet = pstrlen + pstr + reserved + info_hash + self.peer_id
+        return handshake_packet
+    
+    def verify_response_handshake(self, response_handshake, info_hash):
+        '''<pstrlen><pstr><reserved><info_hash><peer_id>'''
+        if len(response_handshake) < 68:
+            return False
+        pstrlen_recd = unpack_binary_string('>b', response_handshake[0])[0]
+        pstr_recd = response_handshake[1 : 20]
+        reserved_recd = unpack_binary_string('>8b', response_handshake[20 : 28])
+        info_hash_recd = response_handshake[28 : 48]
+        peer_id_recd = response_handshake[48 : ]
+        
+        if pstrlen_recd != 19:
+            return False
+        if pstr_recd != 'BitTorrent protocol':
+            return False
+        if info_hash_recd != info_hash:
+            return False
+        # check for peer id??
+        return peer_id_recd
+    
+        
 def generate_random_32_bit_int():
     return random.getrandbits(31)
 

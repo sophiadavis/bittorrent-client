@@ -3,6 +3,7 @@ import sys
 
 import client
 import metainfo
+import peer_connection
 
 connect = 0
 announce = 1
@@ -42,6 +43,21 @@ class Session(object):
         peer_list = self.client.get_list_of_peers(announce_response)
         
         print peer_list
+        
+        for i, peer in enumerate(peer_list):
+            if peer[1] < 0:
+                continue
+            else:    
+                current_peer = peer_list[i]
+                peer = self.client.send_handshake(current_peer, self.metainfo_file.bencoded_info_hash)
+                if not peer: 
+                    print "no res"   
+                    continue
+                else:
+                    print "got a valid peer"
+                    print peer.peer_ip
+                    print peer.peer_port
+                    print peer.peer_id
               
         self.sock.close()
 
