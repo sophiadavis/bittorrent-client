@@ -169,11 +169,10 @@ class Client:
             interval, num_leechers, num_seeders = unpack_packet('>iii', response[8:20])
             print str((interval, num_leechers, num_seeders))
             seeders = []
-            from pudb import set_trace; set_trace()
             for n in xrange(num_seeders):
                 seeder_start_index = (20 + 6 * n)
-                seeder_end_index = seeder_start_index + 8
-                ip, tcp_port = unpack_packet('>ii', response[seeder_start_index : seeder_end_index])
+                seeder_end_index = seeder_start_index + 6
+                ip, tcp_port = unpack_packet('>ih', response[seeder_start_index : seeder_end_index])
                 seeders.append((ip, tcp_port))
             return seeders
             
