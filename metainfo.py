@@ -11,17 +11,13 @@ class MetainfoFile:
     def __init__(self, file_name):
         self.file_name = file_name
         self.bencoded_text = read_binary_file(file_name)
-        self.parsed_text = bencoder.decode(self.bencoded_text)[0] # add single underscore
-        self.parsed_info_hash = self.parsed_text['info']
-        self.bencoded_info_hash = bencoder.encode(self.parsed_text['info']) # turn into readonly property
-
-# or -- behave like dictionary, list, etc.
-#     def __getitem__(self, key):
-#         return 
+        self._parsed_text = bencoder.decode(self.bencoded_text)[0] # add single underscore
+        self._parsed_info_hash = self._parsed_text['info']
+        self.bencoded_info_hash = bencoder.encode(self._parsed_info_hash) # turn into readonly property
         
     def __str__(self):
         decoded_text = ''
-        for key, value in self.parsed_text.iteritems():
+        for key, value in self._parsed_text.iteritems():
             if type(value) is not OrderedDict:
                 decoded_text = decoded_text + key + ' : ' + str(value) + '\n'
             else:
@@ -33,13 +29,13 @@ class MetainfoFile:
     @property
     def total_length(self):
         total_length = 0
-        for file in self.parsed_info_hash['files']:
+        for file in self._parsed_info_hash['files']:
             total_length += file['length']
         return total_length
     
     @property
     def announce_url_and_port(self):
-        parsed = self.parsed_text['announce'].rstrip('/announce')
+        parsed = self._parsed_text['announce'].rstrip('/announce')
         port_index = parsed.rfind(':')
         slash_index = parsed.rfind('/')
         url = parsed[slash_index + 1 : port_index]

@@ -15,7 +15,7 @@ class MetainfoTests(unittest.TestCase):
 # test MetainfoFile class     
     def test_it_decodes_from_file_comic(self):
         t = metainfo.MetainfoFile(self.comics)
-        self.assertTrue(t.parsed_text.keys())
+        self.assertTrue(t._parsed_text.keys())
     
     def test_torrent_prints_comic(self):
         t = metainfo.MetainfoFile(self.comics)
@@ -24,7 +24,7 @@ class MetainfoTests(unittest.TestCase):
     # dumb
     def test_it_decodes_from_file_walden(self):
         t = metainfo.MetainfoFile(self.walden)
-        self.assertTrue(t.parsed_text.keys())
+        self.assertTrue(t._parsed_text.keys())
     
     def test_torrent_prints_walden(self):
         t = metainfo.MetainfoFile(self.walden)

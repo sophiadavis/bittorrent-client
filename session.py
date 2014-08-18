@@ -8,7 +8,7 @@ class Session(object):
         self.client = client.Client()
     
     def get_torrent(self):
-        host, port = self.metainfo_file.get_announce_url_and_port()
+        host, port = self.metainfo_file.announce_url_and_port
     
         file = '../../walden.torrent'
         sock = self.client.open_nonblocking_socket()
@@ -22,7 +22,7 @@ class Session(object):
                 print 'Deal with error'
             else:
                 print 'Success!'
-                announce_packet = self.client.make_announce_packet(self.metainfo_file.get_total_length(), self.metainfo_file.bencoded_info_hash)
+                announce_packet = self.client.make_announce_packet(self.metainfo_file.total_length, self.metainfo_file.bencoded_info_hash)
                 response, address = self.client.send_packet_to_tracker(sock, host, port, announce_packet) 
                 print "******************************************"
                 print "Response 2: " + str(response) 
