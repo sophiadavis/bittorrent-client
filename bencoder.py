@@ -84,13 +84,13 @@ def _decode_next_int(message):
 # Functions for encoding normal text as bencoded data
 ###################################
 def encode(message):
-    if type(message) is list:
+    if isinstance(message, list):
         encoded = 'l'
         for item in message:
             encoded += encode(item)
         encoded += 'e'
         
-    elif type(message) is OrderedDict:
+    elif isinstance(message, OrderedDict):
         encoded = 'd'
         for key, value in message.iteritems():
             encoded += _encode_string(key)
@@ -102,9 +102,9 @@ def encode(message):
     return encoded
         
 def _encode_unit(unit):
-    if type(unit) is int:
+    if isinstance(unit, int):
         return _encode_int(unit)
-    elif type(unit) is str:
+    elif isinstance(unit, str):
         return _encode_string(unit)
     else:
         print "PANIC" # TODO  
