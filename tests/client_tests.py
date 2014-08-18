@@ -1,4 +1,5 @@
 import binascii
+import os
 import struct
 import unittest
 
@@ -30,6 +31,11 @@ class ClientTests(unittest.TestCase):
     def test_it_opens_a_socket(self):
         sock = self.client.open_socket_with_timeout(1)
         self.assertGreater(sock, 0)
+    
+    def test_announce_packet_length(self):
+        packet = self.client.make_announce_packet(1, os.urandom(20))
+        self.assertEqual(len(packet), 98)
+    
         
 #     def test_announce_packet_contains_current_connection_id(self):
 #         
