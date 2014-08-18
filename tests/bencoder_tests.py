@@ -136,10 +136,10 @@ class BencoderTests(unittest.TestCase):
 # test that encoding a decoded metainfo file works 'round trip'
     def test_reversing_comic(self):
         t = metainfo.MetainfoFile(self.comics)
-        encoded_torrent = bencoder.encode(t.parsed_text)
+        encoded_torrent = bencoder.encode(t._parsed_text)
         self.assertEqual(t.bencoded_text, encoded_torrent)
     
     def test_reversing_walden(self):
         t = metainfo.MetainfoFile(self.walden)
-        encoded_torrent = bencoder.encode(t.parsed_text)
+        encoded_torrent = bencoder.encode(t._parsed_text)
         self.assertEqual(t.bencoded_text, encoded_torrent)
