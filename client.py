@@ -2,7 +2,6 @@
     UDP socket client
     protocol: http://www.rasterbar.com/products/libtorrent/udp_tracker_protocol.html
 '''
-from metainfo import *
 import binascii
 import hashlib
 import os
@@ -12,6 +11,9 @@ import struct
 import sys
 import time
 import urllib
+
+from metainfo import *
+
 
 class Client:
     def __init__(self):
@@ -74,9 +76,9 @@ class Client:
         print "******************************************"
         
         if action_recd != action_sent:
+            print "Action error!"
             if action_recd == 3:
                 parse_error_packet(response)
-            print "Action error!"
             return -1
             
         elif self.current_transaction_id != transaction_id_recd:
@@ -171,6 +173,12 @@ class Client:
         action = unpack_packet('>iiii', response)
         print "Action is: " + str(action)
         #(iH)
+        
+    def parse_error_packet(response):
+        pass
+        # 32 -- action = 3
+        # 32 -- transaction id
+        # 8 -- error string
 
 def generate_random_32_bit_int():
     return random.getrandbits(31)
@@ -190,12 +198,6 @@ def unpack_packet(format, packet):
         return packet
     except ValueError as e: #??
         print e
-
-def parse_error_packet(response):
-    pass
-    # 32 -- action = 3
-    # 32 -- transaction id
-    # 8 -- error string
 
 def main():
     
