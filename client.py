@@ -22,18 +22,19 @@ class Client:
         self.peer_id = os.urandom(20) # random 20-byte string
         self.key = generate_random_32_bit_int()   
         
-    def backoff(func):
+    def backoff(send_function):
         def backed_off(*args, **kwargs):
             for n in range(8):
                 try:
                     print 'Packet sent.'
-                    response = func(*args, **kwargs)
+                    response = send_function(*args, **kwargs)
                     return response
             
                 except socket.error as e:
-                    print e
                     print 'Excepting...'
-                    time.sleep(1)  # (15 * 2**n)
+                    sock = args[1]
+                    sock.settimeout(1) # n
+#                     time.sleep(1)  # (15 * 2**n)
         return backed_off
             
     def open_socket_with_timeout(self, timeout):
@@ -55,12 +56,12 @@ class Client:
         int32_t	        transaction_id	Randomized by client.
         '''
         action = 0
-        connection_packet = pack_packet('>qii', self.connection_id, action, self.current_transaction_id) # > = big endian, q = 64 bit, i = 32 bit
+        connection_packet = pack_binary_string('>qii', self.connection_id, action, self.current_transaction_id) # > = big endian, q = 64 bit, i = 32 bit
         return connection_packet
     
     
     @backoff
-    def send_packet_to_tracker(self, sock, host, port, packet):
+    def send_packet(self, sock, host, port, packet):
         sock.sendto(packet, (host, port))
         response, address = sock.recvfrom(1024)
         if response:
@@ -69,13 +70,13 @@ class Client:
 
     def check_packet(self, action_sent, response):
         ''' Checks that action and transaction id are correct, and hands off response to appropriate parsing function'''
-        action_recd = unpack_packet('>i', response[:4])[0]
+        action_recd = unpack_binary_string('>i', response[:4])[0]
 
         if (action_recd != action_sent) and (action_recd != 3):
             print "Action error!"
             return -1
         
-        transaction_id_recd = unpack_packet('>i', response[4:8])[0]    
+        transaction_id_recd = unpack_binary_string('>i', response[4:8])[0]    
         
         if self.current_transaction_id != transaction_id_recd:
             print 'Transaction id mismatch!' 
@@ -84,12 +85,12 @@ class Client:
             print 'Exchange successful!'
             if action_recd == 0:
                 print 'Connect packet -- Resetting connection id.'
-                connection_id_recd = unpack_packet('>q', response[8:])[0]
+                connection_id_recd = unpack_binary_string('>q', response[8:])[0]
                 self.connection_id = connection_id_recd
                 return 0
             elif action_recd == 1:
                 print 'Announce packet -- Getting peers.'
-                return self.get_peers(response)
+                return 0
             elif action_recd == 3:
                 parse_error_packet(response)
             else:
@@ -128,12 +129,12 @@ class Client:
         num_want = -1
         info_hash = hashlib.sha1(bencoded_info_hash).digest()
         
-        preamble = pack_packet('>qii',
+        preamble = pack_binary_string('>qii',
                                 self.connection_id, 
                                 action,
                                 self.current_transaction_id)
                         
-        download_info = pack_packet('>qqqiiiih',                                        
+        download_info = pack_binary_string('>qqqiiiih',                                        
                                 bytes_downloaded,
                                 bytes_left,
                                 bytes_uploaded,
@@ -149,7 +150,7 @@ class Client:
                             download_info
         return announce_packet
         
-    def get_peers(self, response):
+    def get_list_of_peers(self, response):
         '''
         size	name	description
         int32_t	    action	        The action this is a reply to. Should in this case be 1 for announce. If 3 (for error) see errors. See actions.
@@ -166,15 +167,15 @@ class Client:
         if num_bytes < 20:
             print "Error in getting peers"
         else:            
-            interval, num_leechers, num_seeders = unpack_packet('>iii', response[8:20])
+            interval, num_leechers, num_seeders = unpack_binary_string('>iii', response[8:20])
             print str((interval, num_leechers, num_seeders))
-            seeders = []
+            peers = []
             for n in xrange(num_seeders):
-                seeder_start_index = (20 + 6 * n)
-                seeder_end_index = seeder_start_index + 6
-                ip, tcp_port = unpack_packet('>ih', response[seeder_start_index : seeder_end_index])
-                seeders.append((ip, tcp_port))
-            return seeders
+                peer_start_index = (20 + 6 * n)
+                peer_end_index = peer_start_index + 6
+                ip, port = unpack_binary_string('>ih', response[peer_start_index : peer_end_index])
+                peers.append((ip, port))
+            return peers
             
         
         
@@ -187,7 +188,7 @@ class Client:
 def generate_random_32_bit_int():
     return random.getrandbits(31)
 
-def pack_packet(format, *args):
+def pack_binary_string(format, *args):
     try:
         s = struct.Struct(format)
         packet = s.pack(*args)
@@ -195,7 +196,7 @@ def pack_packet(format, *args):
     except ValueError as e: #??
         print e
 
-def unpack_packet(format, packet):
+def unpack_binary_string(format, packet):
     try:
         s = struct.Struct(format)
         packet = s.unpack(packet)
@@ -215,14 +216,14 @@ def main():
     
     while(1):           
         connection_packet = client.make_connection_packet()
-        response, address = client.send_packet_to_tracker(sock, host, port, connection_packet)
+        response, address = client.send_packet(sock, host, port, connection_packet)
         status = client.check_packet(0, response)
         if status < 0:
             print 'Deal with error'
         else:
             print 'Success!'
             announce_packet = client.make_announce_packet()
-            response, address = client.send_packet_to_tracker(sock, host, port, announce_packet) 
+            response, address = client.send_packet(sock, host, port, announce_packet) 
             print "Response 2: ----------------------------"
             print response 
             print "----------------------------"
