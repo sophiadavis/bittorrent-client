@@ -112,34 +112,23 @@ class Client:
         uint32_t	    key	            A unique key that is randomized by the client.
         int32_t	        num_want	    The maximum number of peers you want in the reply. Use -1 for default.
         uint16_t	    port	        The port you're listening on.
-        uint16_t	    extensions	    See extensions
-        
-        request string
-        int8_t	        request length	The number of bytes in the request string.
-        int8_t[]	    request string	The string that comes after the host- name and port in the udp tracker URL. 
-            Typically this starts with "/announce" 
-            The bittorrent client is not expected to append query string arguments for stats reporting, 
-                like "uploaded" and "downloaded" since this is already reported in the udp tracker protocol. 
-            However, the client is free to add arguments as extensions.
         '''     
         action = 1
         self.current_transaction_id = generate_random_32_bit_int()
         bytes_downloaded = 0
         bytes_left = total_file_length - bytes_downloaded
         bytes_uploaded = 0
-        event = 2
+        event = 0
         ip = 0
-#         KEY???????
         num_want = -1
-        extensions = 1 # for 01 -- no authentication, yes request string??? 
-        request_string = '/announce' #???
-        len_request_string = len(request_string)
+        info_hash = hashlib.sha1(bencoded_info_hash).digest()
+        
         preamble = pack_packet('>qii',
                                 self.connection_id, 
                                 action,
                                 self.current_transaction_id)
                         
-        download_info = pack_packet('>qqqiIIiHHb',                                        
+        download_info = pack_packet('>qqqiiiih',                                        
                                 bytes_downloaded,
                                 bytes_left,
                                 bytes_uploaded,
@@ -147,16 +136,13 @@ class Client:
                                 ip,
                                 self.key,
                                 num_want,
-                                6881, #????? port -- 6881
-                                extensions,
-                                len_request_string
-                                    )
+                                6881) #????? port -- 6881
+
         announce_packet = preamble + \
-                            hashlib.sha1(bencoded_info_hash).digest() + \
+                            info_hash + \
                             self.peer_id + \
-                            download_info + \
-                            request_string
-        return urllib.quote_plus(announce_packet)
+                            download_info
+        return announce_packet
         
     def get_peers_from_response(self, response):
         '''
@@ -171,7 +157,7 @@ class Client:
         int32_t	    ip	            The ip of a peer in the swarm.
         uint16_t	port	        The peer's listen port.
         '''
-        action = unpack_packet('>iiii', response)
+        action = unpack_packet('>i', response[:4])
         print "Action is: " + str(action)
         #(iH)
         
