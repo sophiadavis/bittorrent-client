@@ -123,9 +123,7 @@ class Client:
         extensions = 1 # for 01 -- no authentication, yes request string??? 
         request_string = '/announce' #???
         len_request_string = len(request_string)
-#         format = '>qii20c20cqqqiIIiHHb'+ len_request_string * 'c' # *format = '>qii' + 'b' + 'b' + 'qqqiIIiHHb' + len_request_string * 'b'
-#         print format
-        preamble = pack_packet('>qii', # '>qii' + 20 * 'b' + 20 * 'b' + 'qqqiIIiHHb' + len_request_string * 'b'
+        preamble = pack_packet('>qii',
                                 self.connection_id, 
                                 action,
                                 self.current_transaction_id)

@@ -2,7 +2,7 @@ import client
 import metainfo
 
 
-class Session:
+class Session(object):
     def __init__(self, torrentFile):
         self.metainfo_file = metainfo.MetainfoFile(torrentFile)
         self.client = client.Client()
