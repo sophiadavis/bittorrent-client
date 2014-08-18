@@ -39,7 +39,8 @@ class Client:
     def open_nonblocking_socket(self):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.setblocking(0)
+#             sock.setblocking(0)
+            sock.settimeout(1)
             return sock
         
         except socket.error:
