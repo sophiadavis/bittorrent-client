@@ -119,6 +119,7 @@ class Client:
         bytes_uploaded = 0
         event = 2
         ip = 0
+#         KEY???????
         num_want = -1
         extensions = 1 # for 01 -- no authentication, yes request string??? 
         request_string = '/announce' #???

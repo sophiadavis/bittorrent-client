@@ -1,3 +1,6 @@
+import bencoder
+from collections import OrderedDict
+
 def main():
     t = MetainfoFile('../../Wer ist wer bei Conny Van Ehlsing ... Gaijin PDF [mininova].torrent')
     print t
@@ -8,9 +11,9 @@ class MetainfoFile:
     def __init__(self, file_name):
         self.file_name = file_name
         self.bencoded_text = read_binary_file(file_name)
-        self.parsed_text = decode(self.bencoded_text)[0] # add single underscore
+        self.parsed_text = bencoder.decode(self.bencoded_text)[0] # add single underscore
         self.parsed_info_hash = self.parsed_text['info']
-        self.bencoded_info_hash = encode(self.parsed_text['info']) # turn into readonly property
+        self.bencoded_info_hash = bencoder.encode(self.parsed_text['info']) # turn into readonly property
 
 # or -- behave like dictionary, list, etc.
 #     def __getitem__(self, key):

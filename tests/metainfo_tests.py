@@ -1,3 +1,4 @@
+import bencoder
 from collections import OrderedDict
 import os
 import unittest
@@ -19,7 +20,8 @@ class MetainfoTests(unittest.TestCase):
     def test_torrent_prints_comic(self):
         t = metainfo.MetainfoFile(self.comics)
         self.assertIsNotNone(t.__str__())
-        
+    
+    # dumb
     def test_it_decodes_from_file_walden(self):
         t = metainfo.MetainfoFile(self.walden)
         self.assertTrue(t.parsed_text.keys())
@@ -27,16 +29,6 @@ class MetainfoTests(unittest.TestCase):
     def test_torrent_prints_walden(self):
         t = metainfo.MetainfoFile(self.walden)
         self.assertIsNotNone(t.__str__())
-    
-    def test_reversing_comic(self):
-        t = metainfo.MetainfoFile(self.comics)
-        encoded_torrent = metainfo.encode(t.parsed_text)
-        self.assertEqual(t.bencoded_text, encoded_torrent)
-    
-    def test_reversing_walden(self):
-        t = metainfo.MetainfoFile(self.walden)
-        encoded_torrent = metainfo.encode(t.parsed_text)
-        self.assertEqual(t.bencoded_text, encoded_torrent)
     
     # dumb test
     def test_it_can_return_info_hash(self):
@@ -46,11 +38,11 @@ class MetainfoTests(unittest.TestCase):
     # dumb test
     def test_it_calculates_total_length(self):
         t = metainfo.MetainfoFile(self.walden)
-        self.assertGreater(t.get_total_length(), 0) # test on single file torrent 
+        self.assertGreater(t.total_length, 0) # test on single file torrent 
     
     def test_it_has_tracker_url_and_port(self):
         t = metainfo.MetainfoFile(self.walden)
-        self.assertEqual(t.get_announce_url_and_port(), ('tracker.publicbt.com', 80))
+        self.assertEqual(t.announce_url_and_port, ('tracker.publicbt.com', 80))
     
 
 if __name__ == '__main__':
