@@ -10,7 +10,6 @@ class Session(object):
     def get_torrent(self):
         host, port = self.metainfo_file.announce_url_and_port
     
-        file = '../../walden.torrent'
         timeout = 1
         sock = self.client.open_socket_with_timeout(timeout)
         print 'Socket created.\n'
