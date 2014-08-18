@@ -37,9 +37,13 @@ class Client:
 #                     time.sleep(1)  # (15 * 2**n)
         return backed_off
             
-    def open_socket_with_timeout(self, timeout):
+    def open_socket_with_timeout(self, timeout, type = 'udp'):
+        if type == 'tcp':
+            type = socket.SOCK_STREAM
+        else:
+            type = socket.SOCK_DGRAM
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock = socket.socket(socket.AF_INET, type)
             sock.settimeout(timeout)
             return sock
         
