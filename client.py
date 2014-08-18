@@ -135,7 +135,7 @@ class Client:
                                 ip,
                                 self.key,
                                 num_want,
-                                6881) #????? port -- 6881
+                                6881)
 
         announce_packet = preamble + \
                             info_hash + \
@@ -143,7 +143,7 @@ class Client:
                             download_info
         return announce_packet
         
-    def get_peers_from_response(self, response):
+    def get_peers(self, response):
         '''
         size	name	description
         int32_t	    action	        The action this is a reply to. Should in this case be 1 for announce. If 3 (for error) see errors. See actions.
@@ -156,9 +156,13 @@ class Client:
         int32_t	    ip	            The ip of a peer in the swarm.
         uint16_t	port	        The peer's listen port.
         '''
+        num_bytes = len(response)
         action = unpack_packet('>i', response[:4])
         print "Action is: " + str(action)
-        #(iH)
+        if action == 1:
+            unp
+        else:
+            print "Action Mismatch" # Todo
         
     def parse_error_packet(response):
         pass

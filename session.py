@@ -29,7 +29,7 @@ class Session(object):
                 print "Response 2: " + str(response) 
                 print "******************************************"
                 print len(response)
-                self.client.get_peers_from_response(response)
+                self.client.get_peers(response)
                 break
               
         sock.close()
