@@ -36,11 +36,10 @@ class Client:
                     time.sleep(1)  # (15 * 2**n)
         return backed_off
             
-    def open_nonblocking_socket(self):
+    def open_socket_with_timeout(self, timeout):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#             sock.setblocking(0)
-            sock.settimeout(1)
+            sock.settimeout(timeout)
             return sock
         
         except socket.error:

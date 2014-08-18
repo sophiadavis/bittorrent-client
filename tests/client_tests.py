@@ -28,7 +28,7 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(hex_packet[24:], hex_transaction_id)
     
     def test_it_opens_a_socket(self):
-        sock = self.client.open_nonblocking_socket()
+        sock = self.client.open_socket_with_timeout(1)
         self.assertGreater(sock, 0)
         
 #     def test_announce_packet_contains_current_connection_id(self):

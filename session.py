@@ -11,7 +11,8 @@ class Session(object):
         host, port = self.metainfo_file.announce_url_and_port
     
         file = '../../walden.torrent'
-        sock = self.client.open_nonblocking_socket()
+        timeout = 1
+        sock = self.client.open_socket_with_timeout(timeout)
         print 'Socket created.\n'
 
         while(1):           
