@@ -68,27 +68,33 @@ class Client:
     
 
     def check_packet(self, action_sent, response):
-        response = unpack_packet('>iiq', response)
-        action_recd, transaction_id_recd, connection_id_recd = response
-        
-        print "******************************************"
-        print 'Response: ' + str((action_recd, transaction_id_recd, connection_id_recd))
-        print "******************************************"
-        
-        if action_recd != action_sent:
+        ''' Checks that action and transaction id are correct, and hands off response to appropriate parsing function'''
+        action_recd = unpack_packet('>i', response[:4])[0]
+
+        if (action_recd != action_sent) and (action_recd != 3):
             print "Action error!"
-            if action_recd == 3:
-                parse_error_packet(response)
             return -1
-            
-        elif self.current_transaction_id != transaction_id_recd:
+        
+        transaction_id_recd = unpack_packet('>i', response[4:8])[0]    
+        
+        if self.current_transaction_id != transaction_id_recd:
             print 'Transaction id mismatch!' 
             return -1 
-            
         else:
-            print 'Exchange successful! Resetting connection id.'
-            self.connection_id = connection_id_recd
-            return 0
+            print 'Exchange successful!'
+            if action_recd == 0:
+                print 'Connect packet -- Resetting connection id.'
+                connection_id_recd = unpack_packet('>q', response[8:])[0]
+                self.connection_id = connection_id_recd
+                return 0
+            elif action_recd == 1:
+                print 'Announce packet -- Getting peers.'
+                return self.get_peers(response)
+            elif action_recd == 3:
+                parse_error_packet(response)
+            else:
+                print 'Action not implemented'
+                return -1
     
     def make_announce_packet(self, total_file_length, bencoded_info_hash):
         '''   
@@ -157,12 +163,21 @@ class Client:
         uint16_t	port	        The peer's listen port.
         '''
         num_bytes = len(response)
-        action = unpack_packet('>i', response[:4])
-        print "Action is: " + str(action)
-        if action == 1:
-            unp
-        else:
-            print "Action Mismatch" # Todo
+        if num_bytes < 20:
+            print "Error in getting peers"
+        else:            
+            interval, num_leechers, num_seeders = unpack_packet('>iii', response[8:20])
+            print str((interval, num_leechers, num_seeders))
+            seeders = []
+            from pudb import set_trace; set_trace()
+            for n in xrange(num_seeders):
+                seeder_start_index = (20 + 6 * n)
+                seeder_end_index = seeder_start_index + 8
+                ip, tcp_port = unpack_packet('>ii', response[seeder_start_index : seeder_end_index])
+                seeders.append((ip, tcp_port))
+            return seeders
+            
+        
         
     def parse_error_packet(response):
         pass
