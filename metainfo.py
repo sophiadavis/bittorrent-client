@@ -6,7 +6,7 @@ def main():
     print t
     
 
-class MetainfoFile:
+class MetainfoFile(object):
     ''' Represents information contained in a .torrent file '''
     def __init__(self, file_name):
         self.file_name = file_name

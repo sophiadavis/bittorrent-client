@@ -16,7 +16,7 @@ from metainfo import *
 from peer_connection import *
 
 
-class Client:
+class Client(object):
     def __init__(self):
         self.connection_id = int('41727101980', 16)
         self.current_transaction_id = generate_random_32_bit_int()
