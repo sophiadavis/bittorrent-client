@@ -52,12 +52,15 @@ class Session(object):
                     print "*Peer not valid.\n"   
                     continue
                 else:
+                    self.client.active_peer_pool.append(peer)
                     print "*Peer valid:"
                     print "\tIP: " + str(peer.peer_ip)
                     print "\tPort: " + str(peer.peer_port)
                     print "\tPeer ID: " + str(peer.peer_id)
                     print
               
+        
+        
         self.sock.close()
 
     def check_status(self, status, failure):
