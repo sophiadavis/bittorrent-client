@@ -42,25 +42,22 @@ class Session(object):
         
         peer_list = self.client.get_list_of_peers(announce_response)
                 
-        for i, peer in enumerate(peer_list):
-            if peer[1] < 0:
+        for i, peer in enumerate(peer_list):   
+            current_peer = peer_list[i]
+            # IP's and ports are correct -- checked w wireshark
+            peer = self.client.send_handshake(current_peer, self.metainfo_file.bencoded_info_hash)
+            if not peer: 
+                print "*Peer not valid.\n"   
                 continue
-            else:    
-                current_peer = peer_list[i]
-                peer = self.client.send_handshake(current_peer, self.metainfo_file.bencoded_info_hash)
-                if not peer: 
-                    print "*Peer not valid.\n"   
-                    continue
-                else:
-                    self.client.active_peer_pool.append(peer)
-                    print "*Peer valid:"
-                    print "\tIP: " + str(peer.peer_ip)
-                    print "\tPort: " + str(peer.peer_port)
-                    print "\tPeer ID: " + str(peer.peer_id)
-                    print
+            else:
+                self.client.active_peer_pool['choking'].append(peer)
+                print "*Peer valid:"
+                print peer
+                print
               
+        self.client.send_interested()
         
-        
+        self.client.active_peer_pool
         self.sock.close()
 
     def check_status(self, status, failure):

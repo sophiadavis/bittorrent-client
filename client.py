@@ -3,6 +3,8 @@
     protocol: http://www.rasterbar.com/products/libtorrent/udp_tracker_protocol.html
 '''
 import binascii
+import bitstring
+from collections import defaultdict
 import hashlib
 import os
 import random
@@ -13,8 +15,7 @@ import time
 import urllib
 
 from metainfo import *
-from peer_connection import *
-
+import peer_connection
 
 class Client(object):
     def __init__(self):
@@ -22,7 +23,7 @@ class Client(object):
         self.current_transaction_id = generate_random_32_bit_int()
         self.peer_id = os.urandom(20) # random 20-byte string
         self.key = generate_random_32_bit_int()
-        self.active_peer_pool = []   
+        self.active_peer_pool = defaultdict(list)
         
     def backoff(send_function):
         def backed_off(*args, **kwargs):
@@ -135,7 +136,9 @@ class Client(object):
             for n in xrange(num_peers):
                 peer_start_index = (20 + 6 * n)
                 peer_end_index = peer_start_index + 6
-                ip, port = unpack_binary_string('>ih', response[peer_start_index : peer_end_index])
+                ip, port = unpack_binary_string('>IH', response[peer_start_index : peer_end_index])
+                ip = socket.inet_ntoa(struct.pack(">I", ip))
+                print (ip, port)
                 peers.append((ip, port))
             print "Returning list of %i peers (ip, port).\n" % num_peers
             return peers
@@ -150,40 +153,76 @@ class Client(object):
     
         
     def send_handshake(self, peer, bencoded_info_hash):
-        ip = socket.inet_ntoa(struct.pack(">i", peer[0]))
+        ip = peer[0]
         port = peer[1]
         
         sock = self.open_socket_with_timeout(1, type = 'tcp')
     
         info_hash = hashlib.sha1(bencoded_info_hash).digest()
-        handshake = self.make_handshake(info_hash)
-#         from pudb import set_trace; set_trace()
+        handshake = self._make_handshake(info_hash)
         try:
             sock.connect((ip, port))
             sock.send(handshake)
             response_handshake, address = sock.recvfrom(1024)
-            peer_id = self.verify_response_handshake(response_handshake, info_hash)
+            peer_id = self._verify_response_handshake(response_handshake, info_hash)
             if peer_id:
-                peer = PeerConnection(ip, port, peer_id, sock)
+                peer = peer_connection.PeerConnection(ip, port, peer_id, sock)
+                response, address = sock.recvfrom(1024)
+                if response:
+                    print "got immediate response"
+                    print repr(response)
+                    print len(response)
+
+#                     from pudb import set_trace; set_trace()
+                    length_and_id = response[:5]
+                    length, id = unpack_binary_string('>IB', length_and_id)
+                    if id not in range(10): # it's a bunch of haves
+                        print "haves!"
+                        while response:
+                            msg_start = response.find('\x00\x00\x00\x05\x04')
+                            print repr(response[msg_start:])
+                            length_and_id = response[msg_start : msg_start + 5]
+                            length, id = unpack_binary_string('>IB', length_and_id)
+                            print (length, id)
+                            print "'recursing' on"
+                            print repr(response)
+                            peer.parse_and_update_status_from_message(response[msg_start:], length, id)
+                            
+                            response = response[msg_start + 4 + length: ]
+#                         print binascii.unhexlify(response)
+#                 
+#                         data_offset = repr(response[(12*8 - 1) : 12*8 + 3])
+#                         print "offset is" + str(data_offset)
+#                         print len(data_offset)
+#                         print binascii.unhexlify(data_offset)
+#                         if len(data_offset) == 18:
+#                             print "binary offset is"
+#                             print binascii.unhexlify(data_offset)
+                    else:
+                        peer.parse_and_update_status_from_message(response, length, id)
+#                 from pudb import set_trace; set_trace()
                 return peer
+            else:
+                print "Return handshake error"
         except socket.error:
+            print "Socket connection error"
             return False
         
     
-    def make_handshake(self, info_hash):
+    def _make_handshake(self, info_hash):
         '''<pstrlen><pstr><reserved><info_hash><peer_id>'''
         pstr = 'BitTorrent protocol'
-        pstrlen = pack_binary_string('>b', len(pstr))
-        reserved = pack_binary_string('>8b', 0, 0, 0, 0, 0, 0, 0, 0)
+        pstrlen = pack_binary_string('>B', len(pstr))
+        reserved = pack_binary_string('>8B', 0, 0, 0, 0, 0, 0, 0, 0)
         handshake_packet = pstrlen + pstr + reserved + info_hash + self.peer_id
         return handshake_packet
     
-    def verify_response_handshake(self, response_handshake, info_hash):
+    def _verify_response_handshake(self, response_handshake, info_hash):
         if len(response_handshake) < 68:
             return False
-        pstrlen_recd = unpack_binary_string('>b', response_handshake[0])[0]
+        pstrlen_recd = unpack_binary_string('>B', response_handshake[0])[0]
         pstr_recd = response_handshake[1 : 20]
-        reserved_recd = unpack_binary_string('>8b', response_handshake[20 : 28])
+        reserved_recd = unpack_binary_string('>8B', response_handshake[20 : 28])
         info_hash_recd = response_handshake[28 : 48]
         peer_id_recd = response_handshake[48 : ]
         
@@ -196,6 +235,29 @@ class Client(object):
         # check for peer id??
         return peer_id_recd
     
+    def send_interested(self):
+        print "in send_interested\n"
+        while self.active_peer_pool['choking']:
+            peer = self.active_peer_pool['choking'].pop(0)
+            print peer
+            interested_message = pack_binary_string('>IB', 1, 2)
+
+            try:
+                peer.sock.send(interested_message)
+                response, address = peer.sock.recvfrom(1024)
+                if response:
+                    print "* response! length: " + str(len(response))
+                    print type(response)
+                    length_and_id = response[:5]
+                    length, id = unpack_binary_string('>IB', length_and_id)
+                    print (length, id )
+                    message_type = peer.parse_and_update_status_from_message(response, length, id)
+                    if message_type == "unchoked":
+                        self.active_peer_pool['unchoked'].append(peer)
+            except socket.error:
+                self.active_peer_pool['choking'].append(peer)
+                continue
+            
         
 def generate_random_32_bit_int():
     return random.getrandbits(31)
