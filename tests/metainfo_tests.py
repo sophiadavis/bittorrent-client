@@ -44,6 +44,11 @@ class MetainfoTests(unittest.TestCase):
         t = metainfo.MetainfoFile(self.walden)
         self.assertEqual(t.announce_url_and_port, ('tracker.publicbt.com', 80))
     
+    def test_it_gets_num_pieces(self):
+        t = metainfo.MetainfoFile(self.walden)
+        print t.num_pieces
+#         self.assertEqual(t.num_pieces, ('tracker.publicbt.com', 80))
+    
 
 if __name__ == '__main__':
     unittest.main()

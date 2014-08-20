@@ -14,6 +14,7 @@ class MetainfoFile(object):
         self._parsed_text = bencoder.decode(self.bencoded_text)[0] # add single underscore
         self._parsed_info_hash = self._parsed_text['info']
         self.bencoded_info_hash = bencoder.encode(self._parsed_info_hash) # turn into readonly property
+        self.num_pieces = len(self._parsed_info_hash['pieces']) / 20
         
     def __str__(self):
         decoded_text = ''
@@ -29,8 +30,11 @@ class MetainfoFile(object):
     @property
     def total_length(self):
         total_length = 0
-        for file in self._parsed_info_hash['files']:
-            total_length += file['length']
+        if 'length' in self._parsed_info_hash.keys():
+            total_length = self._parsed_info_hash['length']
+        else:
+            for file in self._parsed_info_hash['files']:
+                total_length += file['length']
         return total_length
     
     @property
