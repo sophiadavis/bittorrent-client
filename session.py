@@ -45,7 +45,7 @@ class Session(object):
         for i, peer in enumerate(peer_list):   
             current_peer = peer_list[i]
             # IP's and ports are correct -- checked w wireshark
-            peer = self.client.send_handshake(current_peer, self.metainfo_file.bencoded_info_hash)
+            peer = self.client.send_handshake(current_peer, self.metainfo_file.bencoded_info_hash, self.metainfo_file.num_pieces)
             if not peer: 
                 print "*Peer not valid.\n"   
                 continue

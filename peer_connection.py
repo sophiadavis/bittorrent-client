@@ -17,12 +17,13 @@ MESSAGE_TYPE_DICT = {   'choke' : 0,
 
 class PeerConnection(object):
     
-    def __init__(self, peer_ip, peer_port, peer_id, sock):
+    def __init__(self, peer_ip, peer_port, peer_id, sock, num_pieces):
         self.peer_ip = peer_ip
         self.peer_port = peer_port
         self.peer_id = peer_id
         self.sock = sock
         self.status = 'choked'
+        self.pieces = [0] * num_pieces
         
     def __str__(self):
         return '%s:%i -- status: %s' % (str(self.peer_ip), self.peer_port, self.status)
@@ -39,22 +40,21 @@ class PeerConnection(object):
     
     def _parse_bitfield(self, packet, length):
         print "bitfield"
-        print message
+        print repr(packet)
+        print binascii.hexlify(packet[5 : length + 4])
 #         self.status = 'unchoked'
 #         for i in message:
 #             print binascii.unhexlify(i)
         return "bitfield"
     
     def _parse_have(self, packet, length):
-        print "have"
-        
-#         self.status = 'unchoked'
-#         for i in message:
-#             print binascii.unhexlify(i)
+        piece_num = client.unpack_binary_string('>I', packet[5 : length + 4])[0]
+        print piece_num
+        self.pieces[piece_num] = 1
         return "have"
         
     def parse_and_update_status_from_message(self, packet, length, id):
-        print (length, id)
+#         print (length, id)
         MESSAGE_PARSE_DICT = {  0 : self._parse_choke,
                     1 : self._parse_unchoke,
 #                         2 : parse_interested,

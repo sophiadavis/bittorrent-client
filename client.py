@@ -152,7 +152,7 @@ class Client(object):
         # 8 -- error string
     
         
-    def send_handshake(self, peer, bencoded_info_hash):
+    def send_handshake(self, peer, bencoded_info_hash, num_pieces):
         ip = peer[0]
         port = peer[1]
         
@@ -166,41 +166,8 @@ class Client(object):
             response_handshake, address = sock.recvfrom(1024)
             peer_id = self._verify_response_handshake(response_handshake, info_hash)
             if peer_id:
-                peer = peer_connection.PeerConnection(ip, port, peer_id, sock)
-                response, address = sock.recvfrom(1024)
-                if response:
-                    print "got immediate response"
-                    print repr(response)
-                    print len(response)
-
-#                     from pudb import set_trace; set_trace()
-                    length_and_id = response[:5]
-                    length, id = unpack_binary_string('>IB', length_and_id)
-                    if id not in range(10): # it's a bunch of haves
-                        print "haves!"
-                        while response:
-                            msg_start = response.find('\x00\x00\x00\x05\x04')
-                            print repr(response[msg_start:])
-                            length_and_id = response[msg_start : msg_start + 5]
-                            length, id = unpack_binary_string('>IB', length_and_id)
-                            print (length, id)
-                            print "'recursing' on"
-                            print repr(response)
-                            peer.parse_and_update_status_from_message(response[msg_start:], length, id)
-                            
-                            response = response[msg_start + 4 + length: ]
-#                         print binascii.unhexlify(response)
-#                 
-#                         data_offset = repr(response[(12*8 - 1) : 12*8 + 3])
-#                         print "offset is" + str(data_offset)
-#                         print len(data_offset)
-#                         print binascii.unhexlify(data_offset)
-#                         if len(data_offset) == 18:
-#                             print "binary offset is"
-#                             print binascii.unhexlify(data_offset)
-                    else:
-                        peer.parse_and_update_status_from_message(response, length, id)
-#                 from pudb import set_trace; set_trace()
+                peer = peer_connection.PeerConnection(ip, port, peer_id, sock, num_pieces)
+                self._check_for_bitfield_message(peer)
                 return peer
             else:
                 print "Return handshake error"
@@ -257,6 +224,28 @@ class Client(object):
             except socket.error:
                 self.active_peer_pool['choking'].append(peer)
                 continue
+                
+    def _check_for_bitfield_message(self, peer):
+        response, address = peer.sock.recvfrom(1024)
+        if response:
+            print "got immediate response"
+            print repr(response)
+            print len(response)
+
+#                     from pudb import set_trace; set_trace()
+            length_and_id = response[:5]
+            length, id = unpack_binary_string('>IB', length_and_id)
+            if id not in range(10): # it's a bunch of haves
+                print "haves!"
+                while response:
+                    msg_start = response.find('\x00\x00\x00\x05\x04')
+                    length_and_id = response[msg_start : msg_start + 5]
+                    length, id = unpack_binary_string('>IB', length_and_id)
+                    peer.parse_and_update_status_from_message(response[msg_start:], length, id)
+                    
+                    response = response[msg_start + 4 + length: ]
+            else:
+                peer.parse_and_update_status_from_message(response, length, id)
             
         
 def generate_random_32_bit_int():
