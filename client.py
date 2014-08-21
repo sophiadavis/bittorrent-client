@@ -38,21 +38,6 @@ class Client(object):
                     sock.settimeout(1) # n
 #                     time.sleep(1)  # (15 * 2**n)
         return backed_off
-            
-    def open_socket_with_timeout(self, timeout, type = 'udp'):
-        if type == 'tcp':
-            type = socket.SOCK_STREAM
-        else:
-            type = socket.SOCK_DGRAM
-        try:
-            sock = socket.socket(socket.AF_INET, type)
-            sock.settimeout(timeout)
-            return sock
-        
-        except socket.error:
-            print 'Could not create socket'
-            sys.exit() 
-        
     
     def make_connection_packet(self):
         action = 0

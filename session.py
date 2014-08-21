@@ -21,7 +21,7 @@ class Session(object):
     
     def connect_to_tracker(self):
         timeout = 1
-        self.sock = self.client.open_socket_with_timeout(timeout)
+        self.sock = client.open_socket_with_timeout(timeout)
         print 'Socket created.\n'
         
         connection_packet = self.client.make_connection_packet()
