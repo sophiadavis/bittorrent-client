@@ -4,6 +4,8 @@ import sys
 import client
 import metainfo
 import peer_connection
+import select
+import socket
 
 connect = 0
 announce = 1
@@ -42,22 +44,55 @@ class Session(object):
         
         peer_list = self.client.get_list_of_peers(announce_response)
                 
-        for i, peer in enumerate(peer_list):   
-            current_peer = peer_list[i]
-            # IP's and ports are correct -- checked w wireshark
-            peer = self.client.send_handshake(current_peer, self.metainfo_file.bencoded_info_hash, self.metainfo_file.num_pieces)
-            if not peer: 
-                print "*Peer not valid.\n"   
-                continue
-            else:
-                self.client.active_peer_pool['choking'].append(peer)
-                print "*Peer valid:"
-                print peer
-                print
-              
-        self.client.send_interested()
+        waiting_for_read = []
+        waiting_for_write = []
+        for peer_info_list in peer_list:   
+            peer = self.client.build_peer(peer_info_list, self.metainfo_file.num_pieces, self.metainfo_file.bencoded_info_hash)
+            peer.schedule_handshake(self.client.peer_id)
+            waiting_for_read.append(peer)
+            try:
+                peer.sock.connect((peer.ip, peer.port))
+            except socket.error as e:
+                print e
+                pass
         
-        self.client.active_peer_pool
+        while waiting_for_read or waiting_for_write:
+            for peer in waiting_for_read:
+                if peer.out_buffer and (peer not in waiting_for_write):
+                    waiting_for_write.append(peer)
+            
+            readable, writeable, errors = select.select(waiting_for_read, waiting_for_write, [])
+#             print "selected: "
+            print len(readable), len(writeable), len(errors)
+            
+            print "writeables" 
+            for peer in writeable:
+                print peer
+                print "******* OUT BUFFER"
+                print repr(peer.out_buffer)
+                success = peer.send_from_out_buffer()
+                if not success:
+                    print "could not send"
+                    pass
+                else:
+                    print "SENT"
+            
+            
+            print "readables"
+            for peer in readable:
+                print peer
+                try:
+                    response = peer.sock.recv(1024)
+                    print "~~~~~~~ response!!!"
+                    print repr(response)
+                except socket.error as e:
+                    print e
+                    continue
+                peer.in_buffer += response
+                while peer.handle_in_buffer():
+                    pass
+                    
+        
         self.sock.close()
 
     def check_status(self, status, failure):
