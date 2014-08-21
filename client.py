@@ -7,6 +7,7 @@ import bitstring
 from collections import defaultdict
 import hashlib
 import os
+import message
 import random
 import socket
 import struct  
@@ -41,7 +42,7 @@ class Client(object):
     
     def make_connection_packet(self):
         action = 0
-        connection_packet = pack_binary_string('>qii', self.connection_id, action, self.current_transaction_id) # > = big endian, q = 64 bit, i = 32 bit
+        connection_packet = message.pack_binary_string('>qii', self.connection_id, action, self.current_transaction_id) # > = big endian, q = 64 bit, i = 32 bit
         return connection_packet
     
     
@@ -55,13 +56,13 @@ class Client(object):
 
     def check_packet(self, action_sent, response):
         ''' Checks that action and transaction id are correct, and hands off response to appropriate parsing function'''
-        action_recd = unpack_binary_string('>i', response[:4])[0]
+        action_recd = message.unpack_binary_string('>i', response[:4])[0]
 
         if (action_recd != action_sent) and (action_recd != 3):
             print "Action error!"
             return -1
         
-        transaction_id_recd = unpack_binary_string('>i', response[4:8])[0]    
+        transaction_id_recd = message.unpack_binary_string('>i', response[4:8])[0]    
         
         if self.current_transaction_id != transaction_id_recd:
             print 'Transaction id mismatch!' 
@@ -69,7 +70,7 @@ class Client(object):
         else:
             if action_recd == 0:
                 print 'Connect packet received -- Resetting connection id.\n'
-                connection_id_recd = unpack_binary_string('>q', response[8:])[0]
+                connection_id_recd = message.unpack_binary_string('>q', response[8:])[0]
                 self.connection_id = connection_id_recd
                 return 0
             elif action_recd == 1:
@@ -92,12 +93,12 @@ class Client(object):
         num_want = -1
         info_hash = hashlib.sha1(bencoded_info_hash).digest()
         
-        preamble = pack_binary_string('>qii',
+        preamble = message.pack_binary_string('>qii',
                                 self.connection_id, 
                                 action,
                                 self.current_transaction_id)
                         
-        download_info = pack_binary_string('>qqqiiiih',                                        
+        download_info = message.pack_binary_string('>qqqiiiih',                                        
                                 bytes_downloaded,
                                 bytes_left,
                                 bytes_uploaded,
@@ -115,12 +116,12 @@ class Client(object):
         if num_bytes < 20:
             print "Error in getting peers"
         else:            
-            interval, num_leechers, num_peers = unpack_binary_string('>iii', response[8:20])
+            interval, num_leechers, num_peers = message.unpack_binary_string('>iii', response[8:20])
             peers = []
             for n in xrange(num_peers):
                 peer_start_index = (20 + 6 * n)
                 peer_end_index = peer_start_index + 6
-                ip, port = unpack_binary_string('>IH', response[peer_start_index : peer_end_index])
+                ip, port = message.unpack_binary_string('>IH', response[peer_start_index : peer_end_index])
                 ip = socket.inet_ntoa(struct.pack(">I", ip))
                 print (ip, port)
                 peers.append((ip, port))
