@@ -39,8 +39,7 @@ class MetainfoFile(object):
         try:
             port = int(port)
         except ValueError as e:
-            # TODO???
-            pass
+            port = 80 # ??
         return url, port
     
     def _get_length_dict(self):

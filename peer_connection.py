@@ -73,6 +73,13 @@ class PeerConnection(object):
         print "HAVE" + str(piece_num)
         self.pieces[piece_num] = 1
         return True
+    
+    def _parse_piece(self, packet, length):
+        index, being = message.unpack_binary_string('>II', packet[5 : 13])
+        block = packet[13 : length + 4]
+        print "GOT A BLOCK"
+        print block
+        return True
         
     def parse_and_update_status_from_message(self, packet, length, id):
         print "PARSING"
@@ -134,6 +141,14 @@ class PeerConnection(object):
     def _schedule_interested(self):
         interested_message = message.pack_binary_string('>IB', 1, 2)
         self.out_buffer += interested_message
+    
+    def _schedule_request(self):
+        index, begin = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_offset()
+        while not self.pieces[index]:
+            index, begin = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_offset()
+        length = 2**14
+        request_message = message.pack_binary_string('>IBIII', 13, 6, index, begin, length)
+        self.out_buffer += request_message
     
     def handle_in_buffer(self):
         print "**** handle in buffer"
