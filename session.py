@@ -101,7 +101,11 @@ class Session(object):
             sys.exit(1)
 
 def main():
-    s = Session('../../walden.torrent')
+    metainfo_filename = '../../walden.torrent'
+    meta = metainfo.MetainfoFile(metainfo_filename)
+    download_filename = '../../Walden'
+    shared_torrent_status_tracker = torrent.Torrent(meta, download_filename)
+    s = Session(meta, shared_torrent_status_tracker)
     s.get_torrent()
 
 if __name__ == '__main__':

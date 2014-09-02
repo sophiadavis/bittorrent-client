@@ -17,7 +17,7 @@ MESSAGE_TYPE_DICT = {   'choke' : 0,
 
 class PeerConnection(object):
     
-    def __init__(self, ip, port, sock, num_pieces, info_hash):
+    def __init__(self, ip, port, sock, num_pieces, info_hash, shared_torrent_status_tracker):
         self.ip = ip
         self.port = port
         self.sock = sock
@@ -27,6 +27,7 @@ class PeerConnection(object):
         self.out_buffer = ''
         self.pieces = [0] * num_pieces
         self.info_hash_digest = hashlib.sha1(info_hash).digest()
+        self.shared_torrent_status_tracker = shared_torrent_status_tracker
         
     def fileno(self):
         return self.sock.fileno()

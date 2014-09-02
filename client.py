@@ -136,11 +136,10 @@ class Client(object):
         # 32 -- transaction id
         # 8 -- error string
     
-    def build_peer(self, (ip, port), num_pieces, info_hash):
+    def build_peer(self, (ip, port), num_pieces, info_hash, shared_torrent_status_tracker):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setblocking(0)
-#         sock.connect((ip, port))
-        peer = peer_connection.PeerConnection(ip, port, sock, num_pieces, info_hash)
+        peer = peer_connection.PeerConnection(ip, port, sock, num_pieces, info_hash, shared_torrent_status_tracker)
     
         return peer
         
