@@ -67,7 +67,7 @@ class PeerConnection(object):
         piece_num = message.unpack_binary_string('>I', packet[5 :])[0]
         print piece_num
         self.pieces[piece_num] = 1
-        return "have"
+        return True
         
     def parse_and_update_status_from_message(self, packet, length, id):
         print "PARSING"
@@ -90,6 +90,7 @@ class PeerConnection(object):
             if !status:
                 pass
                 # DROP CONNECTION
+            return True
         else:
             print "Message not recognized"
 
@@ -129,29 +130,6 @@ class PeerConnection(object):
     def send_interested(self):
         interested_message = message.pack_binary_string('>IB', 1, 2)
         self.out_buffer += interested_message
-                
-    def _check_for_bitfield_message(self, peer):
-        response, address = peer.sock.recvfrom(1024)
-        if response:
-            print "got immediate response"
-            print repr(response)
-            print len(response)
-
-#                     from pudb import set_trace; set_trace()
-            length_and_id = response[:5]
-            length, id = message.unpack_binary_string('>IB', length_and_id)
-            if id not in range(10): # it's a bunch of haves
-                print "haves!"
-                while response:
-                    msg_start = response.find('\x00\x00\x00\x05\x04')
-                    length_and_id = response[msg_start : msg_start + 5]
-                    length, id = message.unpack_binary_string('>IB', length_and_id)
-                    peer.parse_and_update_status_from_message(response[msg_start:], length, id)
-                    
-                    response = response[msg_start + 4 + length: ]
-            else:
-                peer.parse_and_update_status_from_message(response, length, id)
-
     
     def handle_in_buffer(self):
         print "**** handle in buffer"
