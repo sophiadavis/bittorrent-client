@@ -1,23 +1,25 @@
 import binascii
+import select
+import socket
 import sys
 
 import client
 import metainfo
 import peer_connection
-import select
-import socket
+import torrent
 
 connect = 0
 announce = 1
 
 
 class Session(object):
-    def __init__(self, torrentFile):
-        self.metainfo_file = metainfo.MetainfoFile(torrentFile)
+    def __init__(self, meta, shared_torrent_status_tracker):
+        self.meta = meta
         self.client = client.Client()
         self.sock = 0
-        self.host = self.metainfo_file.announce_url_and_port[0]
-        self.port = self.metainfo_file.announce_url_and_port[1]
+        self.host = self.meta.announce_url_and_port[0]
+        self.port = self.meta.announce_url_and_port[1]
+        self.shared_torrent_status_tracker = shared_torrent_status_tracker
     
     def connect_to_tracker(self):
         timeout = 1
@@ -29,7 +31,7 @@ class Session(object):
         return response
         
     def announce(self):
-        announce_packet = self.client.make_announce_packet(self.metainfo_file.total_length, self.metainfo_file.bencoded_info_hash)
+        announce_packet = self.client.make_announce_packet(self.meta.total_length, self.meta.bencoded_info_hash)
         response, address = self.client.send_packet(self.sock, self.host, self.port, announce_packet) 
         return response
     
@@ -47,7 +49,7 @@ class Session(object):
         waiting_for_read = []
         waiting_for_write = []
         for peer_info_list in peer_list:   
-            peer = self.client.build_peer(peer_info_list, self.metainfo_file.num_pieces, self.metainfo_file.bencoded_info_hash)
+            peer = self.client.build_peer(peer_info_list, self.meta.num_pieces, self.meta.bencoded_info_hash, self.shared_torrent_status_tracker)
             peer.schedule_handshake(self.client.peer_id)
             waiting_for_read.append(peer)
             try:

@@ -15,6 +15,8 @@ class MetainfoFile(object):
         self._parsed_info_hash = self._parsed_text['info']
         self.bencoded_info_hash = bencoder.encode(self._parsed_info_hash) # turn into readonly property
         self.num_pieces = len(self._parsed_info_hash['pieces']) / 20
+        self.length_dict = self._get_length_dict()
+        self.total_length = self._get_total_length()
         
     def __str__(self):
         decoded_text = ''
@@ -26,16 +28,6 @@ class MetainfoFile(object):
                 for key2, value2 in value.iteritems():
                     decoded_text = decoded_text + '------' + key2 + ' : ' + str(value2) + '\n'
         return decoded_text
-
-    @property
-    def total_length(self):
-        total_length = 0
-        if 'length' in self._parsed_info_hash.keys():
-            total_length = self._parsed_info_hash['length']
-        else:
-            for file in self._parsed_info_hash['files']:
-                total_length += file['length']
-        return total_length
     
     @property
     def announce_url_and_port(self):
@@ -50,6 +42,21 @@ class MetainfoFile(object):
             # TODO???
             pass
         return url, port
+    
+    def _get_length_dict(self):
+        d = {}
+        if 'length' in self._parsed_info_hash.keys():
+            d[0] = self._parsed_info_hash['length']
+        else:
+            for i, file in enumerate(self._parsed_info_hash['files']):
+                d[i] = file['length']
+        return d
+    
+    def _get_total_length(self):
+        total_length = 0
+        for piece_index in self.length_dict.keys():
+            total_length += self.length_dict[piece_index]
+        return total_length
     
 def read_binary_file(file_name):
     ''' Reads bytes from given file, returns binary string ''' 

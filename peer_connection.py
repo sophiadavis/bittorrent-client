@@ -1,8 +1,11 @@
 import bitstring
-import client
 import hashlib
-import message
 import socket
+
+import client
+import message
+import session
+import torrent
 
 MESSAGE_TYPE_DICT = {   'choke' : 0,
                         'unchoke' : 1,
@@ -40,9 +43,10 @@ class PeerConnection(object):
         print 'choke'
         return "choke"
     
-    def _parse_unchoke(self, packet, length):
+    def _parse_and_respond_to_unchoke(self, packet, length):
         self.status = 'unchoked'
         print 'unchoked'
+        self._schedule_request()
         return 'unchoked'
     
     def _parse_bitfield(self, packet, length):
@@ -59,14 +63,14 @@ class PeerConnection(object):
                     return False # Spare bits are set
                 else:
                     pass
-        if i > len(self.pieces + 8): # Make sure bitfield is correct size
+        if i > len(self.pieces) + 8: # Make sure bitfield is correct size
             return False
             
         return True
     
     def _parse_have(self, packet, length):
-        piece_num = message.unpack_binary_string('>I', packet[5 :])[0]
-        print piece_num
+        piece_num = message.unpack_binary_string('>I', packet[5 : length + 4])[0]
+        print "HAVE" + str(piece_num)
         self.pieces[piece_num] = 1
         return True
         
@@ -74,13 +78,13 @@ class PeerConnection(object):
         print "PARSING"
 #         print (length, id)
         MESSAGE_PARSE_DICT = {  0 : self._parse_choke,
-                                1 : self._parse_unchoke,
-            #                         2 : parse_interested,
-            #                         3 : parse_uninterested,            
+                                1 : self._parse_and_respond_to_unchoke,
+            #                    2 : self._parse_and_respond_to_interested,
+            #                         3 : self._parse_uninterested,            
                                 4 : self._parse_have,
-                                5 : self._parse_bitfield }#,
+                                5 : self._parse_bitfield,
             #                         6 : parse_request,
-            #                         7 : parse_piece,
+                                7 : self._parse_piece }#,
             #                         8 : parse_cancel,
             #                         9 : parse_port  }
     
@@ -88,7 +92,6 @@ class PeerConnection(object):
 #         from pudb import set_trace; set_trace()
         if int(id) in range(9):
             status = MESSAGE_PARSE_DICT[id](packet, length)
-            if !status:
                 pass
                 # DROP CONNECTION
             return True
@@ -128,7 +131,7 @@ class PeerConnection(object):
             return False
         return True
     
-    def send_interested(self):
+    def _schedule_interested(self):
         interested_message = message.pack_binary_string('>IB', 1, 2)
         self.out_buffer += interested_message
     
@@ -141,9 +144,10 @@ class PeerConnection(object):
             return False
             
         if self.verify_response_handshake(self.in_buffer):
-            self.send_interested()
             self.in_buffer = self.in_buffer[68:]
             print "Handshake verified"
+            self._schedule_interested()
+            self.last_message_scheduled = "Interested"
             return True
         
         length = int(message.unpack_binary_string(">I", self.in_buffer[:4])[0])
