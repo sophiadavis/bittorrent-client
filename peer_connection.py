@@ -1,4 +1,4 @@
-import binascii
+import bitstring
 import client
 import hashlib
 import message
@@ -47,7 +47,21 @@ class PeerConnection(object):
     def _parse_bitfield(self, packet, length):
         print "bitfield"
         print repr(packet)
-        return "bitfield"
+        bitstr = bitstring.BitArray(bytes = packet[5 : length + 4])
+        
+        from pudb import set_trace; set_trace()
+        for i, have_bit in enumerate(bitstr):
+            try:
+                self.pieces[i] = 1 if have_bit else 0
+            except IndexError:
+                if have_bit:
+                    return False # Spare bits are set
+                else:
+                    pass
+        if i > len(self.pieces + 8): # Make sure bitfield is correct size
+            return False
+            
+        return True
     
     def _parse_have(self, packet, length):
         piece_num = message.unpack_binary_string('>I', packet[5 :])[0]
@@ -72,7 +86,10 @@ class PeerConnection(object):
     
 #         from pudb import set_trace; set_trace()
         if int(id) in range(9):
-            return MESSAGE_PARSE_DICT[id](packet, length)
+            status = MESSAGE_PARSE_DICT[id](packet, length)
+            if !status:
+                pass
+                # DROP CONNECTION
         else:
             print "Message not recognized"
 
