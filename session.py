@@ -48,6 +48,7 @@ class Session(object):
                 
         waiting_for_read = []
         waiting_for_write = []
+#         from pudb import set_trace; set_trace()
         for peer_info_list in peer_list:   
             peer = self.client.build_peer(peer_info_list, self.meta.num_pieces, self.meta.bencoded_info_hash, self.shared_torrent_status_tracker)
             peer.schedule_handshake(self.client.peer_id)
@@ -70,8 +71,6 @@ class Session(object):
             print "writeables" 
             for peer in writeable:
                 print peer
-                print "******* OUT BUFFER"
-                print repr(peer.out_buffer)
                 success = peer.send_from_out_buffer()
                 if not success:
                     print "could not send"
@@ -80,19 +79,19 @@ class Session(object):
                     print "SENT"
             
             
-            print "readables"
             for peer in readable:
                 print peer
                 try:
                     response = peer.sock.recv(1024)
-                    print "~~~~~~~ response!!!"
-                    print repr(response)
                 except socket.error as e:
                     print e
                     continue
                 peer.in_buffer += response
-                while peer.handle_in_buffer():
-                    pass
+                status = peer.handle_in_buffer()
+                while status:
+                    if status == "Done":
+                        return
+                    status = peer.handle_in_buffer()
                     
         
         self.sock.close()
@@ -103,9 +102,10 @@ class Session(object):
             sys.exit(1)
 
 def main():
-    metainfo_filename = '../../walden.torrent'
+#     metainfo_filename = '../../walden.torrent'
+    metainfo_filename = '../../tom.torrent'
     meta = metainfo.MetainfoFile(metainfo_filename)
-    download_filename = '../../Walden'
+    download_filename = '../../Tom.jpg'
     shared_torrent_status_tracker = torrent.Torrent(meta, download_filename)
     s = Session(meta, shared_torrent_status_tracker)
     s.get_torrent()

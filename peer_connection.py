@@ -24,11 +24,11 @@ class PeerConnection(object):
         self.ip = ip
         self.port = port
         self.sock = sock
-        self.status = 'choked'
+        self.status = 'unverified'
         self.last_message_scheduled = None
         self.in_buffer = ''
         self.out_buffer = ''
-        self.pieces = [0] * num_pieces
+        self.pieces = [0] * (num_pieces + 1)
         self.info_hash_digest = hashlib.sha1(info_hash).digest()
         self.shared_torrent_status_tracker = shared_torrent_status_tracker
         
@@ -40,70 +40,73 @@ class PeerConnection(object):
     
     def _parse_choke(self, packet, length):
         self.status = 'choked'
-        print 'choke'
+        print '++++++++++++++++++++ choke'
         return "choke"
     
     def _parse_and_respond_to_unchoke(self, packet, length):
         self.status = 'unchoked'
-        print 'unchoked'
-        self._schedule_request()
+        print '++++++++++++++++++++ unchoke'
+        status = self._schedule_request()
+        if status == "Done":
+            return "DONE"
         return 'unchoked'
     
     def _parse_bitfield(self, packet, length):
-        print "bitfield"
-        print repr(packet)
         bitstr = bitstring.BitArray(bytes = packet[5 : length + 4])
+        print "++++++++++++++++++++ bitfield (length: %(length)i): " % {"length": len(bitstr)}
         
-        from pudb import set_trace; set_trace()
         for i, have_bit in enumerate(bitstr):
             try:
                 self.pieces[i] = 1 if have_bit else 0
             except IndexError:
                 if have_bit:
+                    print "     SPARE BITS SET"
                     return False # Spare bits are set
                 else:
                     pass
         if i > len(self.pieces) + 8: # Make sure bitfield is correct size
+            print "     INCORRECT SIZE"
             return False
             
         return True
     
     def _parse_have(self, packet, length):
         piece_num = message.unpack_binary_string('>I', packet[5 : length + 4])[0]
-        print "HAVE" + str(piece_num)
+        print "++++++++++++++++++++ have: " + str(piece_num)
         self.pieces[piece_num] = 1
         return True
     
     def _parse_piece(self, packet, length):
-        index, being = message.unpack_binary_string('>II', packet[5 : 13])
+        index, begin = message.unpack_binary_string('>II', packet[5 : 13])
         block = packet[13 : length + 4]
-        print "GOT A BLOCK"
-        print block
+        print "++++++++++++++++++++ piece (length: %(length)i, piece: %(index)i, begin: %(begin)i)" % {"index": index, "begin": begin, "length": len(block)}
+
+        self.shared_torrent_status_tracker.process_piece(index, begin, block)
         return True
         
-    def parse_and_update_status_from_message(self, packet, length, id):
-        print "PARSING"
-#         print (length, id)
+    def parse_and_update_status_from_message(self, packet, length, msg_id):
         MESSAGE_PARSE_DICT = {  0 : self._parse_choke,
                                 1 : self._parse_and_respond_to_unchoke,
-            #                    2 : self._parse_and_respond_to_interested,
-            #                         3 : self._parse_uninterested,            
+                                #2 : self._parse_and_respond_to_interested,
+                                #3 : self._parse_uninterested,            
                                 4 : self._parse_have,
                                 5 : self._parse_bitfield,
-            #                         6 : parse_request,
+                                #6 : parse_request,
                                 7 : self._parse_piece }#,
-            #                         8 : parse_cancel,
-            #                         9 : parse_port  }
+                                #8 : parse_cancel,
+                                #9 : parse_port  }
     
     
-#         from pudb import set_trace; set_trace()
-        if int(id) in range(9):
-            status = MESSAGE_PARSE_DICT[id](packet, length)
+        if int(msg_id) in range(9):
+            status = MESSAGE_PARSE_DICT[msg_id](packet, length)
+            if status == "Done":
+                return "Done"
+            elif not status:
                 pass
                 # DROP CONNECTION
             return True
         else:
-            print "Message not recognized"
+            print "++++++++++++++++++++ Message not recognized"
 
         
     def schedule_handshake(self, client_peer_id):
@@ -143,17 +146,18 @@ class PeerConnection(object):
         self.out_buffer += interested_message
     
     def _schedule_request(self):
-        index, begin = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_offset()
+        next = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
+        if next == "Done":
+            return "Done"
+        index, begin = next
         while not self.pieces[index]:
-            index, begin = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_offset()
+            index, begin = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
         length = 2**14
         request_message = message.pack_binary_string('>IBIII', 13, 6, index, begin, length)
         self.out_buffer += request_message
     
     def handle_in_buffer(self):
-        print "**** handle in buffer"
-        print repr(self.in_buffer)
-        print len(self.in_buffer)
+        print "**** handle in buffer, length: %(length)i" % {"length" : len(self.in_buffer)}
         
         if len(self.in_buffer) <= 3:
             return False
@@ -161,9 +165,20 @@ class PeerConnection(object):
         if self.verify_response_handshake(self.in_buffer):
             self.in_buffer = self.in_buffer[68:]
             print "Handshake verified"
+            self.status = 'verified'
             self._schedule_interested()
-            self.last_message_scheduled = "Interested"
+            self.last_message_scheduled = "interested"
             return True
+        
+        if self.status == 'choked':
+            self._schedule_interested()
+            self.last_message_scheduled = "interested"
+        
+        if self.status == 'unchoked':
+            status = self._schedule_request()
+            if status == "Done":
+                return "Done"
+                
         
         length = int(message.unpack_binary_string(">I", self.in_buffer[:4])[0])
         if len(self.in_buffer) < int(length) + 4:
@@ -175,13 +190,16 @@ class PeerConnection(object):
             return True
         
         # All other messages have an id
-        id = int(message.unpack_binary_string('>B', self.in_buffer[4])[0])
+        msg_id = int(message.unpack_binary_string('>B', self.in_buffer[4])[0])
         
-        self.parse_and_update_status_from_message(self.in_buffer[:length + 4], length, id)
+        status = self.parse_and_update_status_from_message(self.in_buffer[:length + 4], length, msg_id)
+        if status == "Done":
+            return "Done"
         self.in_buffer = self.in_buffer[length + 4:]
         return True
     
     def send_from_out_buffer(self):
+        print "**** sending from out buffer, length: %(length)i" % {"length" : len(self.out_buffer)}
         try:
             sent = self.sock.send(self.out_buffer)
             self.out_buffer = self.out_buffer[sent:]

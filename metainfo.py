@@ -1,5 +1,7 @@
-import bencoder
+import math
 from collections import OrderedDict
+
+import bencoder
 
 def main():
     t = MetainfoFile('../../Wer ist wer bei Conny Van Ehlsing ... Gaijin PDF [mininova].torrent')
@@ -14,9 +16,14 @@ class MetainfoFile(object):
         self._parsed_text = bencoder.decode(self.bencoded_text)[0] # add single underscore
         self._parsed_info_hash = self._parsed_text['info']
         self.bencoded_info_hash = bencoder.encode(self._parsed_info_hash) # turn into readonly property
-        self.num_pieces = len(self._parsed_info_hash['pieces']) / 20
-        self.length_dict = self._get_length_dict()
+        self.piece_length = self._parsed_info_hash['piece length']
+        self.length_dict = self._get_file_length_dict()
         self.total_length = self._get_total_length()
+        # self.num_pieces = len(self._parsed_info_hash['pieces']) / 20
+        self.num_pieces = int(math.ceil( self.total_length / self.piece_length ))
+        ### IS THIS RIGHT?????
+        self.request_blocks_per_piece = int(math.ceil( float(self.piece_length) / 2**14))
+        self.pieces_hash = self._parsed_info_hash['pieces']
         
     def __str__(self):
         decoded_text = ''
@@ -42,7 +49,7 @@ class MetainfoFile(object):
             port = 80 # ??
         return url, port
     
-    def _get_length_dict(self):
+    def _get_file_length_dict(self):
         d = {}
         if 'length' in self._parsed_info_hash.keys():
             d[0] = self._parsed_info_hash['length']
@@ -56,7 +63,7 @@ class MetainfoFile(object):
         for piece_index in self.length_dict.keys():
             total_length += self.length_dict[piece_index]
         return total_length
-    
+            
 def read_binary_file(file_name):
     ''' Reads bytes from given file, returns binary string ''' 
     with open(file_name, "rb") as f:
