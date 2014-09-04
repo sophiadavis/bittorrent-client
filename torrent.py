@@ -53,13 +53,13 @@ class Torrent(object):
         
     def _create_pieces_dict(self):
         d = OrderedDict()
-        for piece_index in range(self.meta.num_pieces): # -1 ????
+        for piece_index in range(self.meta.num_pieces - 1): # -1 ???? wtf?
             d[piece_index] = Piece(piece_index, self.meta.piece_length, self.meta.request_blocks_per_piece, self.meta.pieces_hash)
         
         # last piece has a different number of blocks different
         bytes_remaining = self.meta.total_length % self.meta.piece_length
         blocks_remaining = int(math.ceil( float(bytes_remaining) / 2**14))
-        last_piece_index = self.meta.num_pieces
+        last_piece_index = self.meta.num_pieces - 1
         d[last_piece_index] = Piece(last_piece_index, self.meta.piece_length, blocks_remaining, self.meta.pieces_hash)
         return d
         
