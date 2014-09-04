@@ -168,7 +168,7 @@ class PeerConnection(object):
             self.num_outstanding_requests += 1
     
     def handle_in_buffer(self):
-        print "\n**** handle in buffer, length: %(length)i" % {"length" : len(self.in_buffer)}
+        print "**** handle in buffer, length: %(length)i\n" % {"length" : len(self.in_buffer)}
         
         if len(self.in_buffer) <= 3:
             return False
@@ -212,7 +212,7 @@ class PeerConnection(object):
         return True
     
     def send_from_out_buffer(self):
-        print "\n**** sending from out buffer, length: %(length)i" % {"length" : len(self.out_buffer)}
+        print "**** sending from out buffer, length: %(length)i\n" % {"length" : len(self.out_buffer)}
         try:
             sent = self.sock.send(self.out_buffer)
             self.out_buffer = self.out_buffer[sent:]
