@@ -73,7 +73,10 @@ class PeerConnection(object):
     def _parse_have(self, packet, length):
         piece_num = message.unpack_binary_string('>I', packet[5 : length + 4])[0]
         print "++++++++++++++++++++ have: " + str(piece_num)
-        self.pieces[piece_num] = 1
+        try:
+            self.pieces[piece_num] = 1
+        except IndexError:
+            print "Piece index out of range"
         return True
     
     def _parse_piece(self, packet, length):
@@ -146,6 +149,7 @@ class PeerConnection(object):
         self.out_buffer += interested_message
     
     def _schedule_request(self):
+#         from pudb import set_trace; set_trace()
         next = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
         if next == "DONE":
             return "DONE"
