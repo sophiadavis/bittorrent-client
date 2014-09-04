@@ -89,10 +89,12 @@ class Session(object):
                 peer.in_buffer += response
                 status = peer.handle_in_buffer()
                 while status:
-                    if status == "Done":
+                    if status == "DONE":
                         return
                     status = peer.handle_in_buffer()
-                    
+            
+            if self.shared_torrent_status_tracker.status() == "complete":
+                return
         
         self.sock.close()
 

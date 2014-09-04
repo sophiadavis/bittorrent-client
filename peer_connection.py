@@ -28,7 +28,7 @@ class PeerConnection(object):
         self.last_message_scheduled = None
         self.in_buffer = ''
         self.out_buffer = ''
-        self.pieces = [0] * (num_pieces + 1)
+        self.pieces = [0] * (num_pieces)
         self.info_hash_digest = hashlib.sha1(info_hash).digest()
         self.shared_torrent_status_tracker = shared_torrent_status_tracker
         
@@ -47,7 +47,7 @@ class PeerConnection(object):
         self.status = 'unchoked'
         print '++++++++++++++++++++ unchoke'
         status = self._schedule_request()
-        if status == "Done":
+        if status == "DONE":
             return "DONE"
         return 'unchoked'
     
@@ -99,8 +99,8 @@ class PeerConnection(object):
     
         if int(msg_id) in range(9):
             status = MESSAGE_PARSE_DICT[msg_id](packet, length)
-            if status == "Done":
-                return "Done"
+            if status == "DONE":
+                return "DONE"
             elif not status:
                 pass
                 # DROP CONNECTION
@@ -147,8 +147,8 @@ class PeerConnection(object):
     
     def _schedule_request(self):
         next = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
-        if next == "Done":
-            return "Done"
+        if next == "DONE":
+            return "DONE"
         index, begin = next
         while not self.pieces[index]:
             index, begin = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
@@ -157,15 +157,16 @@ class PeerConnection(object):
         self.out_buffer += request_message
     
     def handle_in_buffer(self):
-        print "**** handle in buffer, length: %(length)i" % {"length" : len(self.in_buffer)}
+        print "\n**** handle in buffer, length: %(length)i" % {"length" : len(self.in_buffer)}
         
         if len(self.in_buffer) <= 3:
             return False
-            
+         
+#         from pudb import set_trace; set_trace()   
         if self.verify_response_handshake(self.in_buffer):
             self.in_buffer = self.in_buffer[68:]
             print "Handshake verified"
-            self.status = 'verified'
+            self.status = 'choked'
             self._schedule_interested()
             self.last_message_scheduled = "interested"
             return True
@@ -176,8 +177,8 @@ class PeerConnection(object):
         
         if self.status == 'unchoked':
             status = self._schedule_request()
-            if status == "Done":
-                return "Done"
+            if status == "DONE":
+                return "DONE"
                 
         
         length = int(message.unpack_binary_string(">I", self.in_buffer[:4])[0])
@@ -193,13 +194,13 @@ class PeerConnection(object):
         msg_id = int(message.unpack_binary_string('>B', self.in_buffer[4])[0])
         
         status = self.parse_and_update_status_from_message(self.in_buffer[:length + 4], length, msg_id)
-        if status == "Done":
-            return "Done"
+        if status == "DONE":
+            return "DONE"
         self.in_buffer = self.in_buffer[length + 4:]
         return True
     
     def send_from_out_buffer(self):
-        print "**** sending from out buffer, length: %(length)i" % {"length" : len(self.out_buffer)}
+        print "\n**** sending from out buffer, length: %(length)i" % {"length" : len(self.out_buffer)}
         try:
             sent = self.sock.send(self.out_buffer)
             self.out_buffer = self.out_buffer[sent:]
