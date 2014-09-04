@@ -19,9 +19,7 @@ class MetainfoFile(object):
         self.piece_length = self._parsed_info_hash['piece length']
         self.length_dict = self._get_file_length_dict()
         self.total_length = self._get_total_length()
-        # self.num_pieces = len(self._parsed_info_hash['pieces']) / 20
-        self.num_pieces = int(math.ceil( self.total_length / self.piece_length ))
-        ### IS THIS RIGHT?????
+        self.num_pieces = int(len(self._parsed_info_hash['pieces']) / 20)
         self.request_blocks_per_piece = int(math.ceil( float(self.piece_length) / 2**14))
         self.pieces_hash = self._parsed_info_hash['pieces']
         
