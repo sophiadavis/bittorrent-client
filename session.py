@@ -94,9 +94,8 @@ class Session(object):
                     status = peer.handle_in_buffer()
             
             if self.shared_torrent_status_tracker.status() == "complete":
+                self.sock.close()
                 return
-        
-        self.sock.close()
 
     def check_status(self, status, failure):
         if status < 0:
@@ -104,11 +103,12 @@ class Session(object):
             sys.exit(1)
 
 def main():
-#     metainfo_filename = '../../walden.torrent'
-    metainfo_filename = '../../tom.torrent'
+    metainfo_filename = '../../walden.torrent'
+#     metainfo_filename = '../../tom.torrent'
     meta = metainfo.MetainfoFile(metainfo_filename)
-    download_filename = '../../Tom.jpg'
-    shared_torrent_status_tracker = torrent.Torrent(meta, download_filename)
+    temp_download_filename = '../../Walden-again.bytes'
+    open(temp_download_filename, 'a').close()
+    shared_torrent_status_tracker = torrent.Torrent(meta, temp_download_filename)
     s = Session(meta, shared_torrent_status_tracker)
     s.get_torrent()
 
