@@ -26,9 +26,9 @@ class Torrent(object):
         block_index = int(byte_index / 2**14)
         current_piece = self.pieces_status_dict[piece_index]
         
-        current_piece.block_request_status_list[block_index] = 1
-        current_piece.update_status(self.pieces)
-        # THIS IS CONFUSING
+        current_piece.update_status()
+        self.pieces[current_piece.index] = current_piece.status
+        
         
 #         if self.pieces.count("complete") > 76:
 #             from pudb import set_trace; set_trace()
@@ -82,13 +82,13 @@ class Torrent(object):
         # save block into piece
         current_piece.block_data_list[block_index] = block
         
-        current_piece.update_status(self.pieces)
         
         print "Piece %i -- %s" % (current_piece.index, current_piece.status)
         
         if current_piece.status == "complete":
             if not current_piece.write_completed_piece(self.download_filename):
                 current_piece.reset(self.pieces)
+            current_piece.update_status()
                 
     def status(self):
         if self.pieces.count("complete") > 76:
@@ -113,8 +113,10 @@ class Piece(object):
     def __str__(self):
         return "Piece %i: %s \n ------ index in file: %i \n ------ hash: %s \n ------ block_data_list: %s" % (self.index, self.status, self.byte_index_in_file, self.hash, str(self.block_data_list))
      
-    def update_status(self, pieces_list):
-        if self.block_data_list.count('') == 0:
+    def update_status(self):
+        if self.status == "written":
+            pass
+        elif self.block_data_list.count('') == 0:
             self.status = "complete"
         elif 1 in self.block_request_status_list and 0 in self.block_request_status_list:
             self.status = "semi_requested"
@@ -122,7 +124,6 @@ class Piece(object):
             self.status = "all_requested"
         else:
             self.status = "unrequested"
-        pieces_list[self.index] = self.status
     
     def reset(self, pieces_list):
         self.status = "unrequested"
