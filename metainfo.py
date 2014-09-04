@@ -17,11 +17,13 @@ class MetainfoFile(object):
         self._parsed_info_hash = self._parsed_text['info']
         self.bencoded_info_hash = bencoder.encode(self._parsed_info_hash) # turn into readonly property
         self.piece_length = self._parsed_info_hash['piece length']
-        self.length_dict = self._get_file_length_dict()
+        self.file_info_dict = self._get_file_info_dict()
         self.total_length = self._get_total_length()
         self.num_pieces = int(len(self._parsed_info_hash['pieces']) / 20)
         self.request_blocks_per_piece = int(math.ceil( float(self.piece_length) / 2**14))
         self.pieces_hash = self._parsed_info_hash['pieces']
+        self.base_file_name = self._parsed_info_hash['name']
+        self.type = "single" if len(self.file_info_dict.keys()) == 1 else "multiple"
         
     def __str__(self):
         decoded_text = ''
@@ -47,24 +49,23 @@ class MetainfoFile(object):
             port = 80 # ??
         return url, port
     
-    def _get_file_length_dict(self):
-        d = {}
+    def _get_file_info_dict(self):
+        d = OrderedDict()
         if 'length' in self._parsed_info_hash.keys():
-            d[0] = self._parsed_info_hash['length']
+            d[0] = [self._parsed_info_hash['name'], self._parsed_info_hash['length']]
         else:
             for i, file in enumerate(self._parsed_info_hash['files']):
-                d[i] = file['length']
+                d[i] = [file['path'], file['length']]
         return d
     
     def _get_total_length(self):
         total_length = 0
-        for piece_index in self.length_dict.keys():
-            total_length += self.length_dict[piece_index]
+        for piece_index in self.file_info_dict.keys():
+            total_length += self.file_info_dict[piece_index][1]
         return total_length
             
 def read_binary_file(file_name):
     ''' Reads bytes from given file, returns binary string ''' 
     with open(file_name, "rb") as f:
-        data = f.read() # remove context mnger??
-        # or open(file name).read(), and wait for garbage collector
+        data = f.read()
     return data   

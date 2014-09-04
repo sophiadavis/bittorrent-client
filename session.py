@@ -1,4 +1,6 @@
 import binascii
+import os
+import os.path
 import select
 import socket
 import sys
@@ -102,15 +104,52 @@ class Session(object):
             print "Session: " + failure
             sys.exit(1)
 
+    def write_to_file(self, temp_filename):
+#         from pudb import set_trace; set_trace()
+        if self.meta.type == "single":
+            os.rename(temp_filename, "../../" + self.meta.base_file_name)
+        else:
+            current_location = 0
+            for file_index in self.meta.file_info_dict.keys():
+                file = self.meta.file_info_dict[file_index]
+                path_elements = file[0]
+                length = file[1]
+        
+                path = "../../" + self.meta.base_file_name
+                file_name = path_elements.pop()
+                for dir in path_elements:
+                    path = os.path.join(path, dir)
+                
+                if not os.path.exists(path):
+                    path = os.makedirs(path) 
+                
+                try:
+                    full_path = os.path.join(path, file_name)
+                except:
+                    from pudb import set_trace; set_trace()
+        
+                with open(temp_filename, "rb") as f:
+                    f.seek(current_location)
+                    file_data = f.read(length)
+                
+                print "Writing to file %s" % full_path
+                with open(full_path, "ab") as f:
+                    f.write(file_data)
+        
+                current_location += length
+                
+
 def main():
     metainfo_filename = '../../walden.torrent'
 #     metainfo_filename = '../../tom.torrent'
     meta = metainfo.MetainfoFile(metainfo_filename)
-    temp_download_filename = '../../Walden-again.bytes'
-    open(temp_download_filename, 'a').close()
-    shared_torrent_status_tracker = torrent.Torrent(meta, temp_download_filename)
+    temp_filename = '../../temp.bytes'
+    open(temp_filename, 'a').close()
+    shared_torrent_status_tracker = torrent.Torrent(meta, temp_filename)
     s = Session(meta, shared_torrent_status_tracker)
     s.get_torrent()
+    s.write_to_file(temp_filename)
+    os.remove(temp_filename)
 
 if __name__ == '__main__':
     main()
