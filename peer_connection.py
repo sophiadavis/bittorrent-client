@@ -31,12 +31,13 @@ class PeerConnection(object):
         self.pieces = [0] * (num_pieces)
         self.info_hash_digest = hashlib.sha1(info_hash).digest()
         self.shared_torrent_status_tracker = shared_torrent_status_tracker
+        self.num_outstanding_requests = 0
         
     def fileno(self):
         return self.sock.fileno()
         
     def __str__(self):
-        return '%s:%i -- status: %s' % (str(self.ip), self.port, self.status)
+        return '%s:%i -- status: %s, num requests: %i, last sent %s' % (str(self.ip), self.port, self.status, self.num_outstanding_requests, self.last_message_scheduled)
     
     def _parse_choke(self, packet, length):
         self.status = 'choked'
@@ -85,6 +86,9 @@ class PeerConnection(object):
         print "++++++++++++++++++++ piece (length: %(length)i, piece: %(index)i, begin: %(begin)i)" % {"index": index, "begin": begin, "length": len(block)}
 
         self.shared_torrent_status_tracker.process_piece(index, begin, block)
+        self.num_outstanding_requests -= 1
+        status = self._schedule_request()
+        self.last_message_scheduled = "request"
         return True
         
     def parse_and_update_status_from_message(self, packet, length, msg_id):
@@ -145,20 +149,23 @@ class PeerConnection(object):
         return True
     
     def _schedule_interested(self):
+        print "....... scheduled interested"
         interested_message = message.pack_binary_string('>IB', 1, 2)
         self.out_buffer += interested_message
     
     def _schedule_request(self):
-#         from pudb import set_trace; set_trace()
-        next = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
-        if next == "DONE":
-            return "DONE"
-        index, begin = next
-        while not self.pieces[index]:
-            index, begin = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
-        length = 2**14
-        request_message = message.pack_binary_string('>IBIII', 13, 6, index, begin, length)
-        self.out_buffer += request_message
+        if self.num_outstanding_requests < 1:
+            next = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
+            if next == "DONE":
+                return "DONE"
+            index, begin = next
+            while not self.pieces[index]:
+                index, begin = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
+            length = 2**14
+            request_message = message.pack_binary_string('>IBIII', 13, 6, index, begin, length)
+            print "....... scheduled request for piece %i, byte %i (%i)" % (index, begin, length)
+            self.out_buffer += request_message
+            self.num_outstanding_requests += 1
     
     def handle_in_buffer(self):
         print "\n**** handle in buffer, length: %(length)i" % {"length" : len(self.in_buffer)}
@@ -181,6 +188,7 @@ class PeerConnection(object):
         
         if self.status == 'unchoked':
             status = self._schedule_request()
+            self.last_message_scheduled = "request"
             if status == "DONE":
                 return "DONE"
                 
