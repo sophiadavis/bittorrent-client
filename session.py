@@ -62,8 +62,9 @@ class Session(object):
                 pass
         
         while waiting_for_read or waiting_for_write:
+            waiting_for_write = []
             for peer in waiting_for_read:
-                if peer.out_buffer and (peer not in waiting_for_write):
+                if peer.out_buffer:
                     waiting_for_write.append(peer)
             
             readable, writeable, errors = select.select(waiting_for_read, waiting_for_write, [])
@@ -85,6 +86,9 @@ class Session(object):
                 print peer
                 try:
                     response = peer.sock.recv(1024)
+                    if not response:
+                        waiting_for_read.remove(peer)
+                        continue
                 except socket.error as e:
                     print e
                     continue
@@ -104,7 +108,7 @@ class Session(object):
             print "Session: " + failure
             sys.exit(1)
 
-    def write_to_file(self, temp_filename):
+    def transfer_file_contents(self, temp_filename):
 #         from pudb import set_trace; set_trace()
         if self.meta.type == "single":
             os.rename(temp_filename, "../../" + self.meta.base_file_name)
@@ -148,8 +152,8 @@ def main():
     shared_torrent_status_tracker = torrent.Torrent(meta, temp_filename)
     s = Session(meta, shared_torrent_status_tracker)
     s.get_torrent()
-    s.write_to_file(temp_filename)
-    os.remove(temp_filename)
+    s.transfer_file_contents(temp_filename)
+#     os.remove(temp_filename)
 
 if __name__ == '__main__':
     main()
