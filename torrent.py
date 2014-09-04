@@ -26,6 +26,8 @@ class Torrent(object):
         block_index = int(byte_index / 2**14)
         current_piece = self.pieces_status_dict[piece_index]
         
+        current_piece.block_request_status_list[block_index] = 1
+        
         current_piece.update_status()
         self.pieces[current_piece.index] = current_piece.status
         
@@ -41,7 +43,8 @@ class Torrent(object):
             next_block_index = 0
         elif 'all_requested' in self.pieces:
             if self.requested:
-                next_piece_index, next_block_index = self.requested.pop(0)
+                self.next_request = self.requested.pop(0)
+                return current
             else:
                 self.next_request = "DONE"
                 return current
@@ -73,8 +76,8 @@ class Torrent(object):
         current_piece = self.pieces_status_dict[piece_index]
         
         # maybe premature
-        if [piece_index, begin] in self.requested:
-            self.requested.remove([piece_index, begin]) 
+#         if [piece_index, begin] in self.requested:
+#             self.requested.remove([piece_index, begin]) 
 #         else:
 #             # we already removed it -- so we already saved it
 #             return
@@ -82,19 +85,27 @@ class Torrent(object):
         # save block into piece
         current_piece.block_data_list[block_index] = block
         
+        current_piece.update_status()
+        self.pieces[current_piece.index] = current_piece.status
+        
         
         print "Piece %i -- %s" % (current_piece.index, current_piece.status)
         
         if current_piece.status == "complete":
-            if not current_piece.write_completed_piece(self.download_filename):
+            written = current_piece.write_completed_piece(self.download_filename)
+            if written:
+                if [piece_index, begin] in self.requested:
+                    self.requested.remove([piece_index, begin]) 
+            else:
                 current_piece.reset(self.pieces)
-            current_piece.update_status()
                 
     def status(self):
-        if self.pieces.count("complete") > 76:
-            print self.pieces
-#             from pudb import set_trace; set_trace()
-        if len(self.pieces) == self.pieces.count("complete"):
+        print "^^^^^^^^^ Checking status -- written: %i, complete: %i, all_requested: %i, semi_requested: %i, unrequested %i" % (self.pieces.count("written"), self.pieces.count("complete"), self.pieces.count("all_requested"), self.pieces.count("semi_requested"), self.pieces.count("unrequested"))
+#         if self.pieces.count("written") > len(self.pieces[:-1]) - 20:
+#         for piece in self.pieces_status_dict.values():
+#             print "%i: %s" % (piece.index, piece.status)
+        if len(self.pieces[:-1]) == self.pieces.count("complete"):
+            from pudb import set_trace; set_trace()
             return "complete"
         else:
             return "incomplete"
@@ -106,17 +117,16 @@ class Piece(object):
         self.index = index
         self.byte_index_in_file = piece_length * index
         self.hash = total_hash[index * 20 : (index * 20) + 20]
-        self.block_request_status_list = [0] * num_request_blocks
-        self.block_data_list = [''] * num_request_blocks
+        self.num_blocks = num_request_blocks
+        self.block_request_status_list = [0] * self.num_blocks
+        self.block_data_list = [''] * self.num_blocks
         self.status = "unrequested" # unrequested, semi_requested, all_requested, complete
         
     def __str__(self):
         return "Piece %i: %s \n ------ index in file: %i \n ------ hash: %s \n ------ block_data_list: %s" % (self.index, self.status, self.byte_index_in_file, self.hash, str(self.block_data_list))
      
     def update_status(self):
-        if self.status == "written":
-            pass
-        elif self.block_data_list.count('') == 0:
+        if self.block_data_list.count('') == 0:
             self.status = "complete"
         elif 1 in self.block_request_status_list and 0 in self.block_request_status_list:
             self.status = "semi_requested"
@@ -128,12 +138,12 @@ class Piece(object):
     def reset(self, pieces_list):
         self.status = "unrequested"
         pieces_list[self.index] = self.status
-        self.block_request_status_list = [0] * num_request_blocks
-        self.block_data_list = [''] * num_request_blocks
+        self.block_request_status_list = [0] * self.num_blocks
+        self.block_data_list = [''] * self.num_blocks
     
     def next_block_index(self):
-        if 0 in self.block_data_list:
-            return self.block_data_list.index(0)
+        if 0 in self.block_request_status_list:
+            return self.block_request_status_list.index(0)
         else:
             return -1
     
