@@ -37,7 +37,7 @@ class PeerConnection(object):
         return self.sock.fileno()
         
     def __str__(self):
-        return '%s:%i -- status: %s, num requests: %i, last sent %s' % (str(self.ip), self.port, self.status, self.num_outstanding_requests, self.last_message_scheduled)
+        return '%s:%i -- status: %s, num requests: %i, last sent: %s' % (str(self.ip), self.port, self.status, self.num_outstanding_requests, self.last_message_scheduled)
     
     def _parse_choke(self, packet, length):
         self.status = 'choked'
@@ -158,10 +158,9 @@ class PeerConnection(object):
             next = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
             if next == "DONE":
                 return "DONE"
-            index, begin = next
+            index, begin, length = next
             while not self.pieces[index]:
-                index, begin = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
-            length = 2**14
+                index, begin, length = self.shared_torrent_status_tracker.strategically_get_next_piece_index_and_block()
             request_message = message.pack_binary_string('>IBIII', 13, 6, index, begin, length)
             print "....... scheduled request for piece %i, byte %i (%i)" % (index, begin, length)
             self.out_buffer += request_message

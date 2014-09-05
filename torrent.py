@@ -33,10 +33,12 @@ class Torrent(object):
         
         if 'semi_requested' in self.pieces:
             next_piece_index = self.pieces.index('semi_requested')
-            next_block_index = current_piece.next_block_index()
+            next_block_index = self.pieces_status_dict[next_piece_index].next_block_index()
+            next_block_length = self.pieces_status_dict[next_piece_index].block_request_sizes_list[next_block_index]
         elif 'unrequested' in self.pieces:
             next_piece_index = self.pieces.index('unrequested')
             next_block_index = 0
+            next_block_length = self.pieces_status_dict[next_piece_index].block_request_sizes_list[next_block_index]
         elif 'all_requested' in self.pieces:
             if self.requested:
                 self.next_request = self.requested.pop(0)
@@ -47,19 +49,20 @@ class Torrent(object):
         else:
             self.next_request = "DONE"
             return current
-        self.next_request = [next_piece_index, next_block_index * 2**14]
+        self.next_request = [next_piece_index, next_block_index * 2**14, next_block_length]
         return current
         
     def _create_pieces_dict(self):
         d = OrderedDict()
         for piece_index in range(self.meta.num_pieces - 1): # -1 ???? wtf?
-            d[piece_index] = Piece(piece_index, self.meta.piece_length, self.meta.request_blocks_per_piece, self.meta.pieces_hash)
+            d[piece_index] = Piece(piece_index, self.meta.piece_length, self.meta.request_blocks_per_piece, self.meta.pieces_hash, [2**14]*self.meta.request_blocks_per_piece)
         
         # last piece has a different number of blocks different
         bytes_remaining = self.meta.total_length % self.meta.piece_length
         blocks_remaining = int(math.ceil( float(bytes_remaining) / 2**14))
         last_piece_index = self.meta.num_pieces - 1
-        d[last_piece_index] = Piece(last_piece_index, self.meta.piece_length, blocks_remaining, self.meta.pieces_hash)
+        block_request_sizes_list = [2**14] * (blocks_remaining - 1) + [bytes_remaining]
+        d[last_piece_index] = Piece(last_piece_index, self.meta.piece_length, blocks_remaining, self.meta.pieces_hash, block_request_sizes_list)
         return d
         
         
@@ -102,12 +105,13 @@ class Torrent(object):
         
 
 class Piece(object):
-    def __init__(self, index, piece_length, num_request_blocks, total_hash):
+    def __init__(self, index, piece_length, num_request_blocks, total_hash, request_size_list):
         self.index = index
         self.byte_index_in_file = piece_length * index
         self.hash = total_hash[index * 20 : (index * 20) + 20]
         self.num_blocks = num_request_blocks
         self.block_request_status_list = [0] * self.num_blocks
+        self.block_request_sizes_list = request_size_list
         self.block_data_list = [''] * self.num_blocks
         self.status = "unrequested" # unrequested, semi_requested, all_requested, complete
         
