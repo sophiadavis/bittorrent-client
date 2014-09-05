@@ -125,22 +125,25 @@ class Session(object):
                     path = os.path.join(path, dir)
                 
                 if not os.path.exists(path):
-                    path = os.makedirs(path) 
+                    os.makedirs(path) 
                 
                 try:
                     full_path = os.path.join(path, file_name)
-                except:
-                    from pudb import set_trace; set_trace()
-        
-                with open(temp_filename, "rb") as f:
-                    f.seek(current_location)
-                    file_data = f.read(length)
+                    with open(temp_filename, "rb") as f:
+                        f.seek(current_location)
+                        file_data = f.read(length)
                 
-                print "Writing to file %s" % full_path
-                with open(full_path, "ab") as f:
-                    f.write(file_data)
+                    print "Writing to file %s" % full_path
+                    with open(full_path, "ab") as f:
+                        f.write(file_data)
         
-                current_location += length
+                    current_location += length
+                except Exception as e:
+                    print e
+                    from pudb import set_trace; set_trace()
+                    return
+        
+                
                 
 
 def main():
