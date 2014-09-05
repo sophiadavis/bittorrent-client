@@ -31,10 +31,6 @@ class Torrent(object):
         current_piece.update_status()
         self.pieces[current_piece.index] = current_piece.status
         
-        
-#         if self.pieces.count("complete") > 76:
-#             from pudb import set_trace; set_trace()
-        
         if 'semi_requested' in self.pieces:
             next_piece_index = self.pieces.index('semi_requested')
             next_block_index = current_piece.next_block_index()
@@ -69,42 +65,35 @@ class Torrent(object):
         
     def process_piece(self, piece_index, begin, block):
         print "~~~~~~~~~~ Processing piece: " + str(piece_index)
-#         from pudb import set_trace; set_trace()
         
-        # THIS IS WRONG?
         block_index = int(begin / 2**14)
         current_piece = self.pieces_status_dict[piece_index]
+
+        if current_piece.status != "written":
         
-        # maybe premature
-#         if [piece_index, begin] in self.requested:
-#             self.requested.remove([piece_index, begin]) 
-#         else:
-#             # we already removed it -- so we already saved it
-#             return
+            current_piece.block_data_list[block_index] = block
         
-        # save block into piece
-        current_piece.block_data_list[block_index] = block
+            current_piece.update_status()
+            self.pieces[current_piece.index] = current_piece.status
         
-        current_piece.update_status()
-        self.pieces[current_piece.index] = current_piece.status
+            print "Piece %i -- %s" % (current_piece.index, current_piece.status)
         
-        
-        print "Piece %i -- %s" % (current_piece.index, current_piece.status)
-        
-        if current_piece.status == "complete":
-            written = current_piece.write_completed_piece(self.download_filename)
-            if written:
-                if [piece_index, begin] in self.requested:
-                    self.requested.remove([piece_index, begin]) 
-            else:
-                current_piece.reset(self.pieces)
+            if current_piece.status == "complete":
+                written = current_piece.write_completed_piece(self.download_filename)
+                if written:
+                    current_piece.status = "written"
+                    self.pieces[current_piece.index] = current_piece.status
+                    if [piece_index, begin] in self.requested:
+                        self.requested.remove([piece_index, begin]) 
+                else:
+                    current_piece.reset(self.pieces)
                 
     def status(self):
         print "^^^^^^^^^ Checking status -- written: %i, complete: %i, all_requested: %i, semi_requested: %i, unrequested %i" % (self.pieces.count("written"), self.pieces.count("complete"), self.pieces.count("all_requested"), self.pieces.count("semi_requested"), self.pieces.count("unrequested"))
 #         if self.pieces.count("written") > len(self.pieces[:-1]) - 20:
 #         for piece in self.pieces_status_dict.values():
 #             print "%i: %s" % (piece.index, piece.status)
-        if len(self.pieces[:-1]) == self.pieces.count("complete"):
+        if len(self.pieces[:-1]) == self.pieces.count("written"):
             from pudb import set_trace; set_trace()
             return "complete"
         else:
@@ -126,7 +115,9 @@ class Piece(object):
         return "Piece %i: %s \n ------ index in file: %i \n ------ hash: %s \n ------ block_data_list: %s" % (self.index, self.status, self.byte_index_in_file, self.hash, str(self.block_data_list))
      
     def update_status(self):
-        if self.block_data_list.count('') == 0:
+        if self.status == "written":
+            return
+        elif self.block_data_list.count('') == 0:
             self.status = "complete"
         elif 1 in self.block_request_status_list and 0 in self.block_request_status_list:
             self.status = "semi_requested"
