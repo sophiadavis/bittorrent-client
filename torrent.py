@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import hashlib
 import math
 
@@ -8,96 +7,87 @@ class Torrent(object):
     
     def __init__(self, meta, download_filename):
         self.meta = meta
-        self.pieces_status_dict = self._create_pieces_dict()
         self.download_filename = download_filename
-        self.next_request = [0, 0] # piece_index, block_number
         self.requested = []
-        self.pieces = ['unrequested'] * (self.meta.num_pieces)
-        # plus 1?
+        self.pieces = self._create_pieces()
+        
+    def next_fresh_request(self):
+        piece = (next((piece for piece in self.pieces if piece.status == 'semi_requested'), None) or 
+                 next((piece for piece in self.pieces if piece.status == 'unrequested'), None))
+        print "Got fresh piece: ", piece
+        if piece:
+            next_piece_index = piece.index
+            next_block_index = piece.next_unrequested_block_index()
+            next_block_length = piece.block_request_sizes_list[next_block_index]
+            return [next_piece_index, next_block_index * 2**14, next_block_length]
+        else:
+            from pudb import set_trace; set_trace()
+            return None
     
     def strategically_get_next_piece_index_and_block(self):
-        current = self.next_request[:]
-        
-        if current == "DONE":
-            return "DONE"
-        
-        self.requested.append(current)
-        piece_index, byte_index = current
-        block_index = int(byte_index / 2**14)
-        current_piece = self.pieces_status_dict[piece_index]
-        
-        current_piece.block_request_status_list[block_index] = 1
-        
-        current_piece.update_status()
-        self.pieces[current_piece.index] = current_piece.status
-        
-        if 'semi_requested' in self.pieces:
-            next_piece_index = self.pieces.index('semi_requested')
-            next_block_index = self.pieces_status_dict[next_piece_index].next_block_index()
-            next_block_length = self.pieces_status_dict[next_piece_index].block_request_sizes_list[next_block_index]
-        elif 'unrequested' in self.pieces:
-            next_piece_index = self.pieces.index('unrequested')
-            next_block_index = 0
-            next_block_length = self.pieces_status_dict[next_piece_index].block_request_sizes_list[next_block_index]
-        elif 'all_requested' in self.pieces:
+        next_request = self.next_fresh_request()
+        if not next_request:
             if self.requested:
-                self.next_request = self.requested.pop(0)
-                return current
+                next_request = self.requested.pop(0)
             else:
-                self.next_request = "DONE"
-                return current
-        else:
-            self.next_request = "DONE"
-            return current
-        self.next_request = [next_piece_index, next_block_index * 2**14, next_block_length]
-        return current
+                return "DONE"
+        self.requested.append(next_request)
+        return next_request
         
-    def _create_pieces_dict(self):
-        d = OrderedDict()
-        for piece_index in range(self.meta.num_pieces - 1): # -1 ???? wtf?
-            d[piece_index] = Piece(piece_index, self.meta.piece_length, self.meta.request_blocks_per_piece, self.meta.pieces_hash, [2**14]*self.meta.request_blocks_per_piece)
-        
-        # last piece has a different number of blocks different
+    def _create_pieces(self):
+        piece_list = []
+        for piece_index in range(self.meta.num_pieces - 1): 
+            piece = Piece(piece_index, self.meta.piece_length, self.meta.request_blocks_per_piece, 
+                          self.meta.pieces_hash, [2**14] * self.meta.request_blocks_per_piece)
+            piece_list.append(piece)
+            
+        # last piece has different number of bytes
         bytes_remaining = self.meta.total_length % self.meta.piece_length
-        blocks_remaining = int(math.ceil( float(bytes_remaining) / 2**14))
-        last_piece_index = self.meta.num_pieces - 1
+        blocks_remaining = int(math.ceil(float(bytes_remaining) / 2**14))        
         block_request_sizes_list = [2**14] * (blocks_remaining - 1) + [bytes_remaining]
-        d[last_piece_index] = Piece(last_piece_index, self.meta.piece_length, blocks_remaining, self.meta.pieces_hash, block_request_sizes_list)
-        return d
+        
+        last = Piece(self.meta.num_pieces - 1, self.meta.piece_length, blocks_remaining, self.meta.pieces_hash, block_request_sizes_list)
+        piece_list.append(last)
+        from pudb import set_trace; set_trace()
+        
+        print "Last Piece!!",  last
+        
+        return piece_list 
         
         
     def process_piece(self, piece_index, begin, block):
         print "~~~~~~~~~~ Processing piece: " + str(piece_index)
         
         block_index = int(begin / 2**14)
-        current_piece = self.pieces_status_dict[piece_index]
+        current_piece = self.pieces[piece_index]
+        
+        print "Len requested is %i" % len(self.requested)
+        if [request for request in self.requested if request[0:2] == [piece_index, begin]]:
+            self.requested.remove(request)
+        print "Len requested is %i" % len(self.requested)
 
         if current_piece.status != "written":
-        
             current_piece.block_data_list[block_index] = block
-        
-            current_piece.update_status()
-            self.pieces[current_piece.index] = current_piece.status
-        
+                
             print "Piece %i -- %s" % (current_piece.index, current_piece.status)
         
             if current_piece.status == "complete":
                 written = current_piece.write_completed_piece(self.download_filename)
                 if written:
-                    current_piece.status = "written"
-                    self.pieces[current_piece.index] = current_piece.status
-                    if [piece_index, begin] in self.requested:
-                        self.requested.remove([piece_index, begin]) 
+                    current_piece.block_data_list = None
                 else:
                     current_piece.reset(self.pieces)
                 
     def status(self):
-        print "^^^^^^^^^ Checking status -- written: %i, complete: %i, all_requested: %i, semi_requested: %i, unrequested %i" % (self.pieces.count("written"), self.pieces.count("complete"), self.pieces.count("all_requested"), self.pieces.count("semi_requested"), self.pieces.count("unrequested"))
+        statuses = [piece.status for piece in self.pieces]
+        print "^^^^^^^^^ Checking status -- written: %i, complete: %i, all_requested: %i, semi_requested: %i, unrequested %i" % (statuses.count("written"), statuses.count("complete"), statuses.count("all_requested"), statuses.count("semi_requested"), statuses.count("unrequested"))
 #         if self.pieces.count("written") > len(self.pieces[:-1]) - 20:
 #         for piece in self.pieces_status_dict.values():
 #             print "%i: %s" % (piece.index, piece.status)
-        if len(self.pieces[:-1]) == self.pieces.count("written"):
-            from pudb import set_trace; set_trace()
+#         if len(self.pieces[:-1]) == self.pieces.count("written"):
+# #             from pudb import set_trace; set_trace()
+#             return "complete"
+        if all(piece.status == "written" for piece in self.pieces):
             return "complete"
         else:
             return "incomplete"
@@ -113,30 +103,28 @@ class Piece(object):
         self.block_request_status_list = [0] * self.num_blocks
         self.block_request_sizes_list = request_size_list
         self.block_data_list = [''] * self.num_blocks
-        self.status = "unrequested" # unrequested, semi_requested, all_requested, complete
-        
+    
     def __str__(self):
-        return "Piece %i: %s \n ------ index in file: %i \n ------ hash: %s \n ------ block_data_list: %s" % (self.index, self.status, self.byte_index_in_file, self.hash, str(self.block_data_list))
-     
-    def update_status(self):
-        if self.status == "written":
-            return
+        return str(self.index) + ": " + self.status + " " + str(self.block_request_status_list)
+         
+    @property
+    def status(self):
+        if self.block_data_list == None:
+            return "written"
         elif self.block_data_list.count('') == 0:
-            self.status = "complete"
+            return "complete"
         elif 1 in self.block_request_status_list and 0 in self.block_request_status_list:
-            self.status = "semi_requested"
+            return "semi_requested"
         elif self.block_request_status_list.count(0) == 0:
-            self.status = "all_requested"
+            return "all_requested"
         else:
-            self.status = "unrequested"
+            return "unrequested"
     
     def reset(self, pieces_list):
-        self.status = "unrequested"
-        pieces_list[self.index] = self.status
         self.block_request_status_list = [0] * self.num_blocks
         self.block_data_list = [''] * self.num_blocks
     
-    def next_block_index(self):
+    def next_unrequested_block_index(self):
         if 0 in self.block_request_status_list:
             return self.block_request_status_list.index(0)
         else:

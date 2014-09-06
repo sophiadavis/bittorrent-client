@@ -83,6 +83,7 @@ class Session(object):
             
             
             for peer in readable:
+#                 from pudb import set_trace; set_trace()
                 print peer
                 try:
                     response = peer.sock.recv(1024)
@@ -111,7 +112,9 @@ class Session(object):
     def transfer_file_contents(self, temp_filename):
 #         from pudb import set_trace; set_trace()
         if self.meta.type == "single":
-            os.rename(temp_filename, "../../" + self.meta.base_file_name)
+            full_path = "../../" + self.meta.base_file_name
+            print "Writing to file %s" % full_path
+            os.rename(temp_filename, full_path)
         else:
             current_location = 0
             for file_index in self.meta.file_info_dict.keys():
@@ -130,15 +133,19 @@ class Session(object):
                 try:
                     full_path = os.path.join(path, file_name)
                     with open(temp_filename, "rb") as f:
+                        print "Tell", f.tell()
                         f.seek(current_location)
+                        print "Tell", f.tell()
                         file_data = f.read(length)
+                        print "Tell", f.tell()
                 
-                    print "Writing to file %s" % full_path
-                    with open(full_path, "ab") as f:
+                    print "Writing %i bytes to file %s" % (length, full_path)
+                    with open(full_path, "wb") as f:
                         f.write(file_data)
         
                     current_location += length
                 except Exception as e:
+                    print "Error writing to file"
                     print e
                     from pudb import set_trace; set_trace()
                     return
@@ -147,14 +154,16 @@ class Session(object):
                 
 
 def main():
-    metainfo_filename = '../../walden.torrent'
+#     metainfo_filename = '../../treasure_island.torrent'
 #     metainfo_filename = '../../tom.torrent'
+    metainfo_filename = '../../voltaire.torrent'
+#     metainfo_filename = '../../walden.torrent'
     meta = metainfo.MetainfoFile(metainfo_filename)
     temp_filename = '../../temp.bytes'
     open(temp_filename, 'a').close()
     shared_torrent_status_tracker = torrent.Torrent(meta, temp_filename)
     s = Session(meta, shared_torrent_status_tracker)
-    s.get_torrent()
+#     s.get_torrent()
     s.transfer_file_contents(temp_filename)
 #     os.remove(temp_filename)
 
