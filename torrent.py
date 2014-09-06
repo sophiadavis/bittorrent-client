@@ -24,11 +24,13 @@ class Torrent(object):
             or None, if all blocks have been requested at least once. '''
         piece = (next((piece for piece in self.pieces if piece.status == 'semi_requested'), None) or 
                  next((piece for piece in self.pieces if piece.status == 'unrequested'), None))
-        print "Got fresh piece: ", piece
         if piece:
             next_piece_index = piece.index
             next_block_index = piece.next_unrequested_block_index()
             next_block_length = piece.block_request_sizes_list[next_block_index]
+            
+            piece.block_request_status_list[next_block_index] = 1
+            
             return [next_piece_index, next_block_index * 2**14, next_block_length]
         else:
             return None
