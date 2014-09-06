@@ -35,12 +35,20 @@ class Torrent(object):
         else:
             return None
     
-    def strategically_get_next_piece_index_and_block(self):
+    def next_recycled_request(self):
+        ''' Returns a request for next outstanding piece/block. '''
+        outstanding = next((request for request in self.requested if self.pieces[request[0]].status not in ['written', 'complete']), None)
+        return outstanding
+    
+    def strategically_get_next_request(self):
+        ''' Returns a request. 
+            First, pieces are requested in order. Once all pieces have been requested, 
+                outstanding pieces are re-requested. 
+            All scheduled requests are stored in self.requested. '''
         next_request = self.next_fresh_request()
         if not next_request:
-            if self.requested:
-                next_request = self.requested.pop(0)
-            else:
+            next_request = self.next_recycled_request()
+            if not next_request:
                 return "DONE"
         self.requested.append(next_request)
         return next_request
