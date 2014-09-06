@@ -1,13 +1,16 @@
+'''
+Functions for bencoding text and vice versa.
+'''
 from collections import OrderedDict
 import re
         
-###################################
-# Functions for decoding bencoded data
-###################################        
+'''
+Bencode --> text:
+'''       
 def decode(message):
-    ''' Decodes b-encoded text, recursively parses lists and dictionaries '''
+    ''' Decodes bencoded text, recursively parses lists and dictionaries '''
     ''' All dictionaries are represented as OrderedDicts, lists as Python lists, strings as strings, ints as ints '''
-    ''' Returns 'highest' parsed unit and the remaining b-encoded text ''' 
+    ''' Returns 'highest' parsed unit and the remaining bencoded text ''' 
     current = message[0]        
     if current is 'd':
         token = OrderedDict()
@@ -38,8 +41,8 @@ def decode(message):
                 
             
 def _decode_next_unit(message):
-    ''' Helper method for decoding of b-encoded texts '''
-    ''' Returns 'highest' parsed unit and the remaining b-encoded text '''        
+    ''' Helper method for decoding bencoded texts '''
+    ''' Returns 'highest' parsed unit and the remaining bencoded text '''        
     current = message[0]
     if current is 'i':
         token, rest = _decode_next_int(message)
@@ -48,18 +51,15 @@ def _decode_next_unit(message):
         token, rest = _decode_next_string(message)
         message = rest
     
-    ## handle this case???
     else:
-        token = 'oops'
-        rest = message
-        print "PANIC" # TODO
+        raise "Bencoding error"
         
     return token, rest
 
 
 def _decode_next_string(message):
-    ''' Helper method for decoding of b-encoded texts '''
-    ''' Returns 'highest' parsed unit and the remaining b-encoded text ''' 
+    ''' Helper method for decoding bencoded texts '''
+    ''' Returns 'highest' parsed unit and the remaining bencoded text ''' 
     l = re.match(r"^(\d*):", message).group(1) # there is at least one digit, so this can't be None
     l = int(l)
     
@@ -71,8 +71,8 @@ def _decode_next_string(message):
 
 
 def _decode_next_int(message):
-    ''' Helper method for decoding of b-encoded texts '''
-    ''' Returns 'highest' parsed unit and the remaining b-encoded text ''' 
+    ''' Helper method for decoding of bencoded texts '''
+    ''' Returns 'highest' parsed unit and the remaining bencoded text ''' 
     int_str = ''
     i = 1
     while message[i] is not 'e':
@@ -80,9 +80,9 @@ def _decode_next_int(message):
         i += 1;
     return int(int_str), message[(i + 1) : ]
     
-###################################
-# Functions for encoding normal text as bencoded data
-###################################
+'''
+Text --> bencode:
+'''  
 def encode(message):
     if isinstance(message, list):
         encoded = 'l'
@@ -107,8 +107,7 @@ def _encode_unit(unit):
     elif isinstance(unit, str):
         return _encode_string(unit)
     else:
-        print "PANIC" # TODO  
-        return 'oops'      
+        raise "Bencoding error"      
 
 def _encode_int(i):
     return 'i' + str(i) + 'e'
@@ -116,6 +115,3 @@ def _encode_int(i):
 def _encode_string(s):
     prefix = len(s)
     return str(prefix) + ':' + s
-
-if __name__ == '__main__':
-    main()

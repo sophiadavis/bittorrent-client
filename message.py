@@ -1,3 +1,6 @@
+'''
+Functions for creating and parsing binary strings.
+'''
 import struct
 
 def pack_binary_string(format, *args):
@@ -5,7 +8,7 @@ def pack_binary_string(format, *args):
         s = struct.Struct(format)
         packet = s.pack(*args)
         return packet
-    except ValueError as e: #??
+    except ValueError as e:
         print e
 
 def unpack_binary_string(format, packet):
@@ -13,5 +16,5 @@ def unpack_binary_string(format, packet):
         s = struct.Struct(format)
         packet = s.unpack(packet)
         return packet
-    except ValueError as e: #??
+    except ValueError as e:
         print e

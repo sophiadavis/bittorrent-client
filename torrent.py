@@ -1,10 +1,18 @@
+'''
+Contains:
+    - Torrent class to manage overall status of the current download
+    - Piece class to handle the status of each piece of the download, as well as 
+        how each piece should be requested and written to file
+'''
 import hashlib
 import math
 
 import metainfo
 
 class Torrent(object):
-    
+    ''' Contains status of download and functions to determine which piece should be
+        requested next.'''
+        
     def __init__(self, meta, download_filename):
         self.meta = meta
         self.download_filename = download_filename
@@ -12,6 +20,8 @@ class Torrent(object):
         self.pieces = self._create_pieces()
         
     def next_fresh_request(self):
+        ''' Returns a request for any pieces/blocks that have not yet been completely requested,
+            or None, if all blocks have been requested at least once. '''
         piece = (next((piece for piece in self.pieces if piece.status == 'semi_requested'), None) or 
                  next((piece for piece in self.pieces if piece.status == 'unrequested'), None))
         print "Got fresh piece: ", piece
@@ -21,7 +31,6 @@ class Torrent(object):
             next_block_length = piece.block_request_sizes_list[next_block_index]
             return [next_piece_index, next_block_index * 2**14, next_block_length]
         else:
-            from pudb import set_trace; set_trace()
             return None
     
     def strategically_get_next_piece_index_and_block(self):
@@ -35,6 +44,7 @@ class Torrent(object):
         return next_request
         
     def _create_pieces(self):
+        ''' Creates a list of all Piece objects in the current download. '''
         piece_list = []
         for piece_index in range(self.meta.num_pieces - 1): 
             piece = Piece(piece_index, self.meta.piece_length, self.meta.request_blocks_per_piece, 
@@ -48,29 +58,27 @@ class Torrent(object):
         
         last = Piece(self.meta.num_pieces - 1, self.meta.piece_length, blocks_remaining, self.meta.pieces_hash, block_request_sizes_list)
         piece_list.append(last)
-        from pudb import set_trace; set_trace()
-        
-        print "Last Piece!!",  last
-        
+
         return piece_list 
         
         
     def process_piece(self, piece_index, begin, block):
-        print "~~~~~~~~~~ Processing piece: " + str(piece_index)
-        
+        ''' Processes an incoming block of a piece, writing the piece to file once all blocks
+            are present. '''
         block_index = int(begin / 2**14)
         current_piece = self.pieces[piece_index]
         
-        print "Len requested is %i" % len(self.requested)
-        if [request for request in self.requested if request[0:2] == [piece_index, begin]]:
-            self.requested.remove(request)
-        print "Len requested is %i" % len(self.requested)
+        print "~~~~~~~~~~ Processing piece: " + str(current_piece)
+        
+        # remove piece/block from requested list
+        outstanding = [request for request in self.requested if request[0:2] == [piece_index, begin]]
+        if outstanding:
+            for request in outstanding:
+                self.requested.remove(request)
 
         if current_piece.status != "written":
             current_piece.block_data_list[block_index] = block
-                
-            print "Piece %i -- %s" % (current_piece.index, current_piece.status)
-        
+                        
             if current_piece.status == "complete":
                 written = current_piece.write_completed_piece(self.download_filename)
                 if written:
@@ -80,13 +88,12 @@ class Torrent(object):
                 
     def status(self):
         statuses = [piece.status for piece in self.pieces]
-        print "^^^^^^^^^ Checking status -- written: %i, complete: %i, all_requested: %i, semi_requested: %i, unrequested %i" % (statuses.count("written"), statuses.count("complete"), statuses.count("all_requested"), statuses.count("semi_requested"), statuses.count("unrequested"))
-#         if self.pieces.count("written") > len(self.pieces[:-1]) - 20:
-#         for piece in self.pieces_status_dict.values():
-#             print "%i: %s" % (piece.index, piece.status)
-#         if len(self.pieces[:-1]) == self.pieces.count("written"):
-# #             from pudb import set_trace; set_trace()
-#             return "complete"
+        print '''-*-*-*-*-*-*-*-*-*-*-*-* Checking status -- written: %i, complete: %i, all_requested: %i, semi_requested: %i, unrequested: %i''' % \
+                (statuses.count("written"), 
+                statuses.count("complete"), 
+                statuses.count("all_requested"), 
+                statuses.count("semi_requested"), 
+                statuses.count("unrequested"))
         if all(piece.status == "written" for piece in self.pieces):
             return "complete"
         else:
@@ -95,6 +102,9 @@ class Torrent(object):
         
 
 class Piece(object):
+    ''' Contains status of each piece and block of the download, as well as how 
+        each piece should be requested and written to file. '''
+        
     def __init__(self, index, piece_length, num_request_blocks, total_hash, request_size_list):
         self.index = index
         self.byte_index_in_file = piece_length * index
@@ -121,16 +131,22 @@ class Piece(object):
             return "unrequested"
     
     def reset(self, pieces_list):
+        ''' Reset piece to 'unrequested' status. '''
         self.block_request_status_list = [0] * self.num_blocks
         self.block_data_list = [''] * self.num_blocks
     
     def next_unrequested_block_index(self):
+        ''' Determine which block should be requested next. '''
         if 0 in self.block_request_status_list:
             return self.block_request_status_list.index(0)
         else:
             return -1
     
     def write_completed_piece(self, file_name):
+        ''' Verifies that the hash of the complete piece matches the corresponding hash 
+                given in the metainfo file.
+            If the hashes match, the piece is written to the correct location in the given file. 
+            If not, the piece is 'reset' so all blocks will be re-requested. '''
         complete_piece = ''.join(self.block_data_list)
         block_hash = hashlib.sha1(complete_piece).digest()
         if block_hash == self.hash:

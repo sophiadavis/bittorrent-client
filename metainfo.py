@@ -1,3 +1,6 @@
+'''
+Contains Metainfo class, a wrapper for information found in a .torrent metainfo file.
+'''
 import math
 from collections import OrderedDict
 
@@ -9,21 +12,26 @@ def main():
     
 
 class MetainfoFile(object):
-    ''' Represents information contained in a .torrent file '''
+    ''' Represents information contained in a .torrent file. '''
+    
     def __init__(self, file_name):
-        self.file_name = file_name
-        self.bencoded_text = read_binary_file(file_name)
-        self._parsed_text = bencoder.decode(self.bencoded_text)[0] # add single underscore
+        # Text
+        self._bencoded_text = read_binary_file(file_name)
+        self._parsed_text = bencoder.decode(self._bencoded_text)[0]
         self._parsed_info_hash = self._parsed_text['info']
         self.bencoded_info_hash = bencoder.encode(self._parsed_info_hash) # turn into readonly property
-        self.piece_length = self._parsed_info_hash['piece length']
+        
+        # File information
         self.file_info_dict = self._get_file_info_dict()
+        self.base_file_name = self._parsed_info_hash['name']
+        self.type = "single" if len(self.file_info_dict.keys()) == 1 else "multiple"
+        
+        # Length and piece information
         self.total_length = self._get_total_length()
+        self.piece_length = self._parsed_info_hash['piece length']
         self.num_pieces = int(len(self._parsed_info_hash['pieces']) / 20)
         self.request_blocks_per_piece = int(math.ceil( float(self.piece_length) / 2**14))
         self.pieces_hash = self._parsed_info_hash['pieces']
-        self.base_file_name = self._parsed_info_hash['name']
-        self.type = "single" if len(self.file_info_dict.keys()) == 1 else "multiple"
         
     def __str__(self):
         decoded_text = ''
@@ -38,6 +46,8 @@ class MetainfoFile(object):
     
     @property
     def announce_url_and_port(self):
+        ''' Determines the url and port of a tracker (if multiple trackers are listed
+            the metainfo file, only information about the first one is returned. '''
         parsed = self._parsed_text['announce'].rstrip('/announce')
         port_index = parsed.rfind(':')
         slash_index = parsed.rfind('/')
@@ -46,10 +56,12 @@ class MetainfoFile(object):
         try:
             port = int(port)
         except ValueError as e:
-            port = 80 # ??
+            port = 80 # just a guess...
         return url, port
     
     def _get_file_info_dict(self):
+        ''' Parses information about each file contained in a torrent download, 
+            saving the file length and path information into an ordered dictionary. '''
         d = OrderedDict()
         if 'length' in self._parsed_info_hash.keys():
             d[0] = [self._parsed_info_hash['name'], self._parsed_info_hash['length']]
@@ -59,6 +71,8 @@ class MetainfoFile(object):
         return d
     
     def _get_total_length(self):
+        ''' Calculates the total length of the torrent download from the lengths of each
+            included file. '''
         total_length = 0
         for piece_index in self.file_info_dict.keys():
             total_length += self.file_info_dict[piece_index][1]

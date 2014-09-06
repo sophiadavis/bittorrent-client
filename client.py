@@ -1,24 +1,22 @@
 '''
-    UDP socket client
-    protocol: http://www.rasterbar.com/products/libtorrent/udp_tracker_protocol.html
+Contains Client class, creating and managing the connection to a BitTorrent tracker.
 '''
-import binascii
-import bitstring
-from collections import defaultdict
 import hashlib
 import os
-import message
 import random
 import socket
 import struct  
 import sys
 import time
-import urllib
+
+import message
 
 from metainfo import *
 import peer_connection
 
 class Client(object):
+    ''' Manages connection and communication to BitTorrent tracker'''
+
     def __init__(self):
         self.connection_id = int('41727101980', 16)
         self.current_transaction_id = generate_random_32_bit_int()
@@ -26,6 +24,9 @@ class Client(object):
         self.key = generate_random_32_bit_int()
         
     def backoff(send_function):
+        ''' Returns a function in which the original function (to send and receive data 
+             over a socket) is executed up to 8 times, with one second in between each try. 
+             As soon as a response is received, it is returned.'''
         def backed_off(*args, **kwargs):
             for n in range(8):
                 try:
@@ -36,29 +37,30 @@ class Client(object):
                 except socket.error as e:
                     print 'Excepting...\n'
                     sock = args[1]
-                    sock.settimeout(1) # n
-#                     time.sleep(1)  # (15 * 2**n)
+                    sock.settimeout(1)
         return backed_off
-    
-    def make_connection_packet(self):
-        action = 0
-        connection_packet = message.pack_binary_string('>qii', self.connection_id, action, self.current_transaction_id) # > = big endian, q = 64 bit, i = 32 bit
-        return connection_packet
-    
-    
+
     @backoff
     def send_packet(self, sock, host, port, packet):
+        ''' Sends packet to a given host and port. 
+            Returns a response, if the exchange is successful.'''
         sock.sendto(packet, (host, port))
-        response, address = sock.recvfrom(1024)
+        response = sock.recv(1024)
         if response:
-            return response, address
+            return response
     
-
+    def make_connection_packet(self):
+        ''' Creates a UDP-protocol connection packet to send to tracker.'''
+        action = 0
+        connection_packet = message.pack_binary_string('>qii', self.connection_id, action, self.current_transaction_id)
+        return connection_packet
+    
     def check_packet(self, action_sent, response):
-        ''' Checks that action and transaction id are correct, and hands off response to appropriate parsing function'''
+        ''' Checks that action and transaction id are correct. Calls appropriate 
+            parsing function to handle response. '''
         action_recd = message.unpack_binary_string('>i', response[:4])[0]
 
-        if (action_recd != action_sent) and (action_recd != 3):
+        if (action_recd != action_sent):
             print "Action error!"
             return -1
         
@@ -76,13 +78,12 @@ class Client(object):
             elif action_recd == 1:
                 print 'Announce packet received.\n'
                 return 0
-            elif action_recd == 3:
-                parse_error_packet(response)
             else:
                 print 'Action not implemented'
                 return -1
     
-    def make_announce_packet(self, total_file_length, bencoded_info_hash):  
+    def make_announce_packet(self, total_file_length, bencoded_info_hash): 
+        ''' Creates a UDP-protocol announce packet to send to tracker.''' 
         action = 1
         self.current_transaction_id = generate_random_32_bit_int()
         bytes_downloaded = 0
@@ -94,24 +95,26 @@ class Client(object):
         info_hash = hashlib.sha1(bencoded_info_hash).digest()
         
         preamble = message.pack_binary_string('>qii',
-                                self.connection_id, 
-                                action,
-                                self.current_transaction_id)
+                                              self.connection_id, 
+                                              action,
+                                              self.current_transaction_id)
                         
         download_info = message.pack_binary_string('>qqqiiiih',                                        
-                                bytes_downloaded,
-                                bytes_left,
-                                bytes_uploaded,
-                                event,
-                                ip,
-                                self.key,
-                                num_want,
-                                6881)
+                                                   bytes_downloaded,
+                                                   bytes_left,
+                                                   bytes_uploaded,
+                                                   event,
+                                                   ip,
+                                                   self.key,
+                                                   num_want,
+                                                   6881)
 
         announce_packet = preamble + info_hash + self.peer_id + download_info
         return announce_packet
         
     def get_list_of_peers(self, response):
+        ''' Parses tracker's response to announce packet, returning list of peers 
+            in (ip, port) format. ''' 
         num_bytes = len(response)
         if num_bytes < 20:
             print "Error in getting peers"
@@ -125,25 +128,18 @@ class Client(object):
                 ip = socket.inet_ntoa(struct.pack(">I", ip))
                 print (ip, port)
                 peers.append((ip, port))
-            print "Returning list of %i peers (ip, port).\n" % num_peers
+            print "Returning list of %i peers (format: (ip, port)).\n" % num_peers
             return peers
-            
-        
-        
-    def parse_error_packet(response):
-        pass
-        # 32 -- action = 3
-        # 32 -- transaction id
-        # 8 -- error string
     
-    def build_peer(self, (ip, port), num_pieces, info_hash, shared_torrent_status_tracker):
+    def build_peer(self, (ip, port), num_pieces, info_hash, torrent_download):
+        ''' Creates a peer object for coordinating communication with a peer. ''' 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setblocking(0)
-        peer = peer_connection.PeerConnection(ip, port, sock, num_pieces, info_hash, shared_torrent_status_tracker)
-    
+        peer = peer_connection.PeerConnection(ip, port, sock, num_pieces, info_hash, torrent_download)
         return peer
         
 def open_socket_with_timeout(timeout, type = 'udp'):
+    ''' Creates a tcp or udp socket (if timeout == 0, socket is nonblocking. '''
     if type == 'tcp':
         type = socket.SOCK_STREAM
     else:
@@ -159,8 +155,3 @@ def open_socket_with_timeout(timeout, type = 'udp'):
         
 def generate_random_32_bit_int():
     return random.getrandbits(31)
-
-
-    
-if __name__ == '__main__':
-    main()

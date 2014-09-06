@@ -1,4 +1,6 @@
-import binascii
+'''
+Contains Session class to coordinate overall download process.
+'''
 import os
 import os.path
 import select
@@ -10,49 +12,58 @@ import metainfo
 import peer_connection
 import torrent
 
-connect = 0
-announce = 1
-
-
 class Session(object):
-    def __init__(self, meta, shared_torrent_status_tracker):
+    ''' Coordinates download process. '''
+    def __init__(self, meta, torrent_download):
         self.meta = meta
         self.client = client.Client()
         self.sock = 0
         self.host = self.meta.announce_url_and_port[0]
         self.port = self.meta.announce_url_and_port[1]
-        self.shared_torrent_status_tracker = shared_torrent_status_tracker
+        self.torrent_download = torrent_download
     
     def connect_to_tracker(self):
+        ''' Initiate communication with tracker (using Client). '''
         timeout = 1
         self.sock = client.open_socket_with_timeout(timeout)
         print 'Socket created.\n'
         
         connection_packet = self.client.make_connection_packet()
-        response, address = self.client.send_packet(self.sock, self.host, self.port, connection_packet)
+        response = self.client.send_packet(self.sock, self.host, self.port, connection_packet)
         return response
         
     def announce(self):
+        ''' Send announce packet to tracker (using Client). '''
         announce_packet = self.client.make_announce_packet(self.meta.total_length, self.meta.bencoded_info_hash)
-        response, address = self.client.send_packet(self.sock, self.host, self.port, announce_packet) 
+        response = self.client.send_packet(self.sock, self.host, self.port, announce_packet) 
         return response
     
+    def check_status(self, status, failure):
+        ''' Generic error-handling. '''
+        if status < 0:
+            print "Session: " + failure
+            sys.exit(1)
+    
     def get_torrent(self):
+        ''' Coordinate entire file download process. '''
+        
+        CONNECT_ID = 0
+        ANNOUNCE_ID = 1
+
         connection_response = self.connect_to_tracker()
-        connection_status = self.client.check_packet(connect, connection_response)
+        connection_status = self.client.check_packet(CONNECT_ID, connection_response)
         self.check_status(connection_status, "connect")
         
         announce_response = self.announce()
-        announce_status = self.client.check_packet(announce, announce_response)
+        announce_status = self.client.check_packet(ANNOUNCE_ID, announce_response)
         self.check_status(announce_status, "announce")
         
         peer_list = self.client.get_list_of_peers(announce_response)
                 
         waiting_for_read = []
         waiting_for_write = []
-#         from pudb import set_trace; set_trace()
         for peer_info_list in peer_list:   
-            peer = self.client.build_peer(peer_info_list, self.meta.num_pieces, self.meta.bencoded_info_hash, self.shared_torrent_status_tracker)
+            peer = self.client.build_peer(peer_info_list, self.meta.num_pieces, self.meta.bencoded_info_hash, self.torrent_download)
             peer.schedule_handshake(self.client.peer_id)
             waiting_for_read.append(peer)
             try:
@@ -68,23 +79,14 @@ class Session(object):
                     waiting_for_write.append(peer)
             
             readable, writeable, errors = select.select(waiting_for_read, waiting_for_write, [])
-#             print "selected: "
-            print len(readable), len(writeable), len(errors)
-            
-            print "writeables" 
+            print "\nSelected -- read: %i, write: %i, errors: %i" % (len(readable), len(writeable), len(errors))
+             
             for peer in writeable:
-                print peer
-                success = peer.send_from_out_buffer()
-                if not success:
-                    print "could not send"
-                    pass
-                else:
-                    print "SENT"
-            
+                print "Writing: " + str(peer)
+                peer.send_from_out_buffer()
             
             for peer in readable:
-#                 from pudb import set_trace; set_trace()
-                print peer
+                print "Reading: " + str(peer)
                 try:
                     response = peer.sock.recv(1024)
                     if not response:
@@ -97,20 +99,16 @@ class Session(object):
                 status = peer.handle_in_buffer()
                 while status:
                     if status == "DONE":
+                        self.sock.close()
                         return
                     status = peer.handle_in_buffer()
             
-            if self.shared_torrent_status_tracker.status() == "complete":
+            if self.torrent_download.status() == "complete":
                 self.sock.close()
                 return
 
-    def check_status(self, status, failure):
-        if status < 0:
-            print "Session: " + failure
-            sys.exit(1)
-
     def transfer_file_contents(self, temp_filename):
-#         from pudb import set_trace; set_trace()
+        ''' Write downloaded bytes (stored in temp file) into appropriate files. '''
         if self.meta.type == "single":
             full_path = "../../" + self.meta.base_file_name
             print "Writing to file %s" % full_path
@@ -133,11 +131,8 @@ class Session(object):
                 try:
                     full_path = os.path.join(path, file_name)
                     with open(temp_filename, "rb") as f:
-                        print "Tell", f.tell()
                         f.seek(current_location)
-                        print "Tell", f.tell()
                         file_data = f.read(length)
-                        print "Tell", f.tell()
                 
                     print "Writing %i bytes to file %s" % (length, full_path)
                     with open(full_path, "wb") as f:
@@ -145,27 +140,28 @@ class Session(object):
         
                     current_location += length
                 except Exception as e:
-                    print "Error writing to file"
+                    print "Error writing to file: %s" % file_name
                     print e
-                    from pudb import set_trace; set_trace()
-                    return
         
                 
                 
 
 def main():
-#     metainfo_filename = '../../treasure_island.torrent'
-#     metainfo_filename = '../../tom.torrent'
-    metainfo_filename = '../../voltaire.torrent'
-#     metainfo_filename = '../../walden.torrent'
-    meta = metainfo.MetainfoFile(metainfo_filename)
-    temp_filename = '../../temp.bytes'
-    open(temp_filename, 'a').close()
-    shared_torrent_status_tracker = torrent.Torrent(meta, temp_filename)
-    s = Session(meta, shared_torrent_status_tracker)
-#     s.get_torrent()
-    s.transfer_file_contents(temp_filename)
-#     os.remove(temp_filename)
+    if len(sys.argv) < 2 or sys.argv[1][-8:] != ".torrent":
+        print "Usage: python session.py metainfo_file.torrent"
+    else: 
+        metainfo_filename = sys.argv[1]
+        meta = metainfo.MetainfoFile(metainfo_filename)
+        temp_filename = '../../temp.bytes'
+        open(temp_filename, 'a').close()
+        
+        torrent_download = torrent.Torrent(meta, temp_filename)
+        s = Session(meta, torrent_download)
+        
+        s.get_torrent()
+        s.transfer_file_contents(temp_filename)
+        
+        os.remove(temp_filename)
 
 if __name__ == '__main__':
     main()
