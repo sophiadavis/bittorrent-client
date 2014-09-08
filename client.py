@@ -148,4 +148,6 @@ def open_socket_with_timeout(timeout, type = 'udp'):
         sys.exit()
 
 def generate_random_32_bit_int():
-    return random.getrandbits(31) # really?
+    '''Generates a number between -2147483648 and 2147483647. Clearly, 31 != 32, but every time I
+        try 32, I get an error packing the struct. Weird.'''
+    return random.getrandbits(31)
