@@ -5,6 +5,7 @@ import math
 from collections import OrderedDict
 
 import bencoder
+from constants import POLITE_REQUEST_SIZE
 
 def main():
     t = MetainfoFile('../../Wer ist wer bei Conny Van Ehlsing ... Gaijin PDF [mininova].torrent')
@@ -30,7 +31,7 @@ class MetainfoFile(object):
         self.total_length = self._get_total_length()
         self.piece_length = self._parsed_info_hash['piece length']
         self.num_pieces = int(len(self._parsed_info_hash['pieces']) / 20)
-        self.request_blocks_per_piece = int(math.ceil( float(self.piece_length) / 2**14))
+        self.request_blocks_per_piece = int(math.ceil( float(self.piece_length) / POLITE_REQUEST_SIZE))
         self.pieces_hash = self._parsed_info_hash['pieces']
 
     def __str__(self):

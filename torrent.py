@@ -8,6 +8,7 @@ import hashlib
 import math
 
 import metainfo
+from constants import POLITE_REQUEST_SIZE
 
 class Torrent(object):
     ''' Contains status of download and functions to determine which piece should be
@@ -31,7 +32,7 @@ class Torrent(object):
 
             piece.block_request_status_list[next_block_index] = 1
 
-            return [next_piece_index, next_block_index * 2**14, next_block_length]
+            return [next_piece_index, next_block_index * POLITE_REQUEST_SIZE, next_block_length]
         else:
             return None
 
@@ -58,14 +59,14 @@ class Torrent(object):
         piece_list = []
         for piece_index in range(self.meta.num_pieces - 1):
             piece = Piece(piece_index, self.meta.piece_length, self.meta.request_blocks_per_piece,
-                          self.meta.pieces_hash, [2**14] * self.meta.request_blocks_per_piece)
+                          self.meta.pieces_hash, [POLITE_REQUEST_SIZE] * self.meta.request_blocks_per_piece)
             piece_list.append(piece)
 
         # last piece has different number of bytes
         bytes_remaining = self.meta.total_length % self.meta.piece_length
-        blocks_remaining = int(math.ceil(float(bytes_remaining) / 2**14))
-        bytes_in_last_block = bytes_remaining - ((blocks_remaining - 1) * 2**14)
-        block_request_sizes_list = [2**14] * (blocks_remaining - 1) + [bytes_in_last_block]
+        blocks_remaining = int(math.ceil(float(bytes_remaining) / POLITE_REQUEST_SIZE))
+        bytes_in_last_block = bytes_remaining - ((blocks_remaining - 1) * POLITE_REQUEST_SIZE)
+        block_request_sizes_list = [POLITE_REQUEST_SIZE] * (blocks_remaining - 1) + [bytes_in_last_block]
 
         last = Piece(self.meta.num_pieces - 1, self.meta.piece_length, blocks_remaining, self.meta.pieces_hash, block_request_sizes_list)
         piece_list.append(last)
@@ -76,7 +77,7 @@ class Torrent(object):
     def process_piece(self, piece_index, begin, block):
         ''' Processes an incoming block of a piece, writing the piece to file once all blocks
             are present. '''
-        block_index = int(begin / 2**14)
+        block_index = int(begin / POLITE_REQUEST_SIZE)
         current_piece = self.pieces[piece_index]
 
         print "~~~~~~~~~~ Processing piece: " + str(current_piece)
