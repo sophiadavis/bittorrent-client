@@ -14,12 +14,12 @@ import torrent
 
 class Session(object):
     ''' Coordinates download process. '''
-    def __init__(self, meta_filename, torrent_download, temp_file='temp.bytes'):
+    def __init__(self, meta_filename, temp_file='temp.bytes'):
         self.meta = metainfo.MetainfoFile(meta_filename)
         self.client = client.Client()
         self.sock = 0
         self.host, self.port = self.meta.announce_url_and_port
-        self.torrent_download = torrent.Torrent(meta, temp_file)
+        self.torrent_download = torrent.Torrent(self.meta, temp_file)
         open(temp_file, 'w').close()
 
     def connect_to_tracker(self):
@@ -95,10 +95,9 @@ class Session(object):
         else:
             current_location = 0
             for path_elements, length in self.meta.file_info_dict.values():
-
                 path = "../../" + self.meta.base_file_name
                 file_name = path_elements.pop()
-                for dir in path_elements:
+                for d in path_elements:
                     path = os.path.join(path, dir)
 
                 if not os.path.exists(path):
@@ -116,7 +115,6 @@ class Session(object):
                 current_location += length
 
             os.remove(temp_filename)
-
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1][-8:] != ".torrent":
