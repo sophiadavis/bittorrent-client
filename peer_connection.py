@@ -4,6 +4,7 @@ Contains PeerConnection class to facilitate message passing with each peer.
 import bitstring
 import hashlib
 import socket
+import warnings
 
 import client
 import message
@@ -88,15 +89,13 @@ class PeerConnection(object):
                 self.pieces[i] = 1 if have_bit else 0
             except IndexError:
                 if have_bit:
-                    print "Spare bits set in bitfield."
-                    return False
-                else:
-                    pass
+                    warnings.warn("Spare bits set in bitfield.", RuntimeWarning)
         if i > len(self.pieces) + 8:
-            print "Incorrect sized bitfield."
-            return False
-
-        return True
+            warnings.warn("Incorrect sized bitfield.", RuntimeWarning)
+        # I've never encountered these errors (but they're mentioned in the spec).
+        # Should they occur, I'm not sure what to do with the peer -- (is this a
+        # sign of a malicious peer or just a typo?) 
+        # For now, a warning is sufficient.
 
     def _parse_have(self, packet, length):
         piece_num = message.unpack_binary_string('>I', packet[5 : length + 4])[0]
@@ -104,8 +103,8 @@ class PeerConnection(object):
         try:
             self.pieces[piece_num] = 1
         except IndexError:
-            print "Piece index out of range"
-        return True
+            warnings.warn("Piece index out of range", RuntimeWarning)
+            # See above.
 
     def _parse_piece(self, packet, length):
         index, begin = message.unpack_binary_string('>II', packet[5 : 13])
