@@ -5,6 +5,7 @@ import struct
 import unittest
 
 import client
+import message
 
 class ClientTests(unittest.TestCase):
     
@@ -39,15 +40,9 @@ class ClientTests(unittest.TestCase):
     
     def test_client_resets_connection_id_after_response(self):
         new_connection_id = random.randint(0, 127)
-        response = client.pack_binary_string('>iiq', 0, self.client.current_transaction_id, new_connection_id)
-        status = self.client.check_packet(0, response)
-        self.assertEqual(status, 0)
+        response = message.pack_binary_string('>iiq', 0, self.client.current_transaction_id, new_connection_id)
+        self.client.check_packet(0, response)
         self.assertEqual(self.client.connection_id, new_connection_id)
-        
-        
-        
-#     def # send_packet(self, sock, host, port, packet):
-    
 
 if __name__ == '__main__':
     unittest.main()
