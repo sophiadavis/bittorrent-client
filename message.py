@@ -18,3 +18,9 @@ def unpack_binary_string(format, packet):
         return packet
     except ValueError as e:
         print e
+
+def read_binary_file(file_name):
+    ''' Reads bytes from given file, returns binary string ''' 
+    with open(file_name, "rb") as f:
+        data = f.read()
+    return data 
