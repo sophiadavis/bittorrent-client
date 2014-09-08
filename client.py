@@ -21,31 +21,29 @@ class Client(object):
         self.peer_id = os.urandom(20) # random 20-byte string
         self.key = generate_random_32_bit_int()
 
-    def backoff(send_function):
+    def retry(send_function):
         ''' Returns a function in which the original function (to send and receive data
              over a socket) is executed up to 8 times, with one second in between each try.
              As soon as a response is received, it is returned.'''
-        def backed_off(*args, **kwargs):
-            for n in range(8):
+        def repeated(*args, **kwargs):
+            for _ in range(8):
                 try:
-                    print 'Packet sent.'
                     response = send_function(*args, **kwargs)
+                    print 'Packet sent.'
                     return response
 
                 except socket.error as e:
                     print 'Excepting...\n'
-                    sock = args[1]
-                    sock.settimeout(1)
-        return backed_off
+                    print e
+        return repeated
 
-    @backoff
+    @retry
     def send_packet(self, sock, host, port, packet):
         ''' Sends packet to a given host and port.
             Returns a response, if the exchange is successful.'''
         sock.sendto(packet, (host, port))
         response = sock.recv(1024)
-        if response:
-            return response
+        return response
 
     def make_connection_packet(self):
         ''' Creates a UDP-protocol connection packet to send to tracker.'''
