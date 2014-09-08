@@ -116,13 +116,13 @@ class Session(object):
         else:
             current_location = 0
             for file_index in self.meta.file_info_dict.keys():
-                file = self.meta.file_info_dict[file_index]
+                f = self.meta.file_info_dict[file_index]
                 path_elements = file[0]
                 length = file[1]
         
                 path = "../../" + self.meta.base_file_name
                 file_name = path_elements.pop()
-                for dir in path_elements:
+                for d in path_elements:
                     path = os.path.join(path, dir)
                 
                 if not os.path.exists(path):
@@ -134,7 +134,7 @@ class Session(object):
                         f.seek(current_location)
                         file_data = f.read(length)
                 
-                    print "Writing %i bytes to file %s" % (length, full_path)
+                    print "Writing %i bytes to f %s" % (length, full_path)
                     with open(full_path, "wb") as f:
                         f.write(file_data)
         
@@ -153,7 +153,7 @@ def main():
         metainfo_filename = sys.argv[1]
         meta = metainfo.MetainfoFile(metainfo_filename)
         temp_filename = '../../temp.bytes'
-        open(temp_filename, 'a').close()
+        open(temp_filename, 'w').close()
         
         torrent_download = torrent.Torrent(meta, temp_filename)
         s = Session(meta, torrent_download)
