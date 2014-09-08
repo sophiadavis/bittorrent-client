@@ -81,16 +81,16 @@ class Session(object):
                 self.sock.close()
                 return
 
-    def transfer_file_contents(self, temp_filename):
+    def transfer_file_contents(self, temp_filename, download_path):
         ''' Write downloaded bytes (stored in temp file) into appropriate files. '''
         if self.meta.type == "single":
-            full_path = "../../" + self.meta.base_file_name
+            full_path = "Downloads/" + self.meta.base_file_name
             print "Writing to file %s" % full_path
             os.rename(temp_filename, full_path)
         else:
             current_location = 0
             for path_elements, length in self.meta.file_info_dict.values():
-                path = "../../" + self.meta.base_file_name
+                path = os.path.join(download_path, self.meta.base_file_name)
                 file_name = path_elements.pop()
                 for d in path_elements:
                     path = os.path.join(path, d)
@@ -112,13 +112,14 @@ class Session(object):
             os.remove(temp_filename)
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1][-8:] != ".torrent":
-        print "Usage: python session.py metainfo_file.torrent"
+    if len(sys.argv) < 3 or sys.argv[1][-8:] != ".torrent":
+        print "Usage: python session.py metainfo_file.torrent Download/Path"
     else:
         metainfo_filename = sys.argv[1]
+        download_path = sys.argv[2]
         s = Session(metainfo_filename)
         s.get_torrent()
-        s.transfer_file_contents(s.temp_file)
+        s.transfer_file_contents(s.temp_file, download_path)
 
 
 
