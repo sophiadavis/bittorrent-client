@@ -14,13 +14,13 @@ import torrent
 
 class Session(object):
     ''' Coordinates download process. '''
-    def __init__(self, meta, torrent_download):
-        self.meta = meta
+    def __init__(self, meta_filename, torrent_download, temp_file='temp.bytes'):
+        self.meta = metainfo.MetainfoFile(meta_filename)
         self.client = client.Client()
         self.sock = 0
-        self.host = self.meta.announce_url_and_port[0]
-        self.port = self.meta.announce_url_and_port[1]
-        self.torrent_download = torrent_download
+        self.host, self.port = self.meta.announce_url_and_port
+        self.torrent_download = torrent.Torrent(meta, temp_file)
+        open(temp_file, 'w').close()
 
     def connect_to_tracker(self):
         ''' Initiate communication with tracker (using Client). '''
@@ -144,13 +144,7 @@ def main():
         print "Usage: python session.py metainfo_file.torrent"
     else:
         metainfo_filename = sys.argv[1]
-        meta = metainfo.MetainfoFile(metainfo_filename)
-        temp_filename = '../../temp.bytes'
-        open(temp_filename, 'a').close()
-
-        torrent_download = torrent.Torrent(meta, temp_filename)
-        s = Session(meta, torrent_download)
-
+        s = Session(metainfo_filename)
         s.get_torrent()
         s.transfer_file_contents(temp_filename)
 
