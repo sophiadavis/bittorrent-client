@@ -57,9 +57,16 @@ class Torrent(object):
     def _create_pieces(self):
         ''' Creates a list of all Piece objects in the current download. '''
         piece_list = []
+        
         for piece_index in range(self.meta.num_pieces - 1):
+        
+            # last block may have different number of bytes
+            last_block_remainder = self.meta.piece_length % ((self.meta.request_blocks_per_piece) * POLITE_REQUEST_SIZE)
+            bytes_in_last_block = POLITE_REQUEST_SIZE if last_block_remainder == 0 else 0
+            block_request_sizes_list = [POLITE_REQUEST_SIZE] * (self.meta.request_blocks_per_piece - 1) + [bytes_in_last_block]
+            
             piece = Piece(piece_index, self.meta.piece_length, self.meta.request_blocks_per_piece,
-                          self.meta.pieces_hash, [POLITE_REQUEST_SIZE] * self.meta.request_blocks_per_piece)
+                          self.meta.pieces_hash, block_request_sizes_list)
             piece_list.append(piece)
 
         # last piece has different number of bytes
