@@ -115,53 +115,46 @@ class Session(object):
             os.rename(temp_filename, full_path)
         else:
             current_location = 0
-            for file_index in self.meta.file_info_dict.keys():
-                file = self.meta.file_info_dict[file_index]
-                path_elements = file[0]
-                length = file[1]
-        
+            for path_elements, length in self.meta.file_info_dict.values():
+
                 path = "../../" + self.meta.base_file_name
                 file_name = path_elements.pop()
                 for dir in path_elements:
                     path = os.path.join(path, dir)
-                
+
                 if not os.path.exists(path):
-                    os.makedirs(path) 
-                
-                try:
-                    full_path = os.path.join(path, file_name)
-                    with open(temp_filename, "rb") as f:
-                        f.seek(current_location)
-                        file_data = f.read(length)
-                
-                    print "Writing %i bytes to file %s" % (length, full_path)
-                    with open(full_path, "wb") as f:
-                        f.write(file_data)
-        
-                    current_location += length
-                except Exception as e:
-                    print "Error writing to file: %s" % file_name
-                    print e
-        
-                
-                
+                    os.makedirs(path)
+
+                full_path = os.path.join(path, file_name)
+                with open(temp_filename, "rb") as f:
+                    f.seek(current_location)
+                    file_data = f.read(length)
+
+                print "Writing %i bytes to file %s" % (length, full_path)
+                with open(full_path, "wb") as f:
+                    f.write(file_data)
+
+                current_location += length
+
+            os.remove(temp_filename)
+
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1][-8:] != ".torrent":
         print "Usage: python session.py metainfo_file.torrent"
-    else: 
+    else:
         metainfo_filename = sys.argv[1]
         meta = metainfo.MetainfoFile(metainfo_filename)
         temp_filename = '../../temp.bytes'
         open(temp_filename, 'a').close()
-        
+
         torrent_download = torrent.Torrent(meta, temp_filename)
         s = Session(meta, torrent_download)
-        
+
         s.get_torrent()
         s.transfer_file_contents(temp_filename)
-        
-        os.remove(temp_filename)
+
+
 
 if __name__ == '__main__':
     main()
