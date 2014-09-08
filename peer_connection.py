@@ -155,15 +155,13 @@ class PeerConnection(object):
 
     def _schedule_request(self):
         if self.num_outstanding_requests < 1:
-            next = self.torrent_download.strategically_get_next_request()
-            if next == "DONE":
-                return "DONE"
-            index, begin, length = next
-            while not self.pieces[index]:
+            peer_has_piece = False
+            while not peer_has_piece:
                 next = self.torrent_download.strategically_get_next_request()
                 if next == "DONE":
                     return "DONE"
                 index, begin, length = next
+                peer_has_piece = self.pieces[index]
 
             request_message = message.pack_binary_string('>IBIII', 13, 6, index, begin, length)
             print "....... scheduled request for piece %i, byte-offset %i (%i bytes)" % (index, begin, length)
