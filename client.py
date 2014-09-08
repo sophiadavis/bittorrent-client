@@ -10,8 +10,6 @@ import sys
 import time
 
 import message
-
-from metainfo import *
 import peer_connection
 
 class Client(object):
