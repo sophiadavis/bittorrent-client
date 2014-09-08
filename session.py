@@ -52,48 +52,35 @@ class Session(object):
 
         peer_list = self.client.get_list_of_peers(announce_response)
 
-        waiting_for_read = []
-        waiting_for_write = []
-        for peer_info_list in peer_list:
-            peer = self.client.build_peer(peer_info_list, self.meta.num_pieces, self.meta.bencoded_info_hash, self.torrent_download)
+        all_peers = []
+        for (ip, port) in peer_list:
+            peer = self.client.build_peer((ip, port), self.meta.num_pieces, self.meta.bencoded_info_hash, self.torrent_download)
             peer.schedule_handshake(self.client.peer_id)
-            waiting_for_read.append(peer)
+            all_peers.append(peer)
             try:
                 peer.sock.connect((peer.ip, peer.port))
             except socket.error as e:
                 print e
-                pass
 
-        while waiting_for_read or waiting_for_write:
-            waiting_for_write = []
-            for peer in waiting_for_read:
-                if peer.out_buffer:
-                    waiting_for_write.append(peer)
+        while all_peers:
 
-            readable, writeable, errors = select.select(waiting_for_read, waiting_for_write, [])
+            readable, writeable, errors = select.select(all_peers, all_peers, [])
             print "\nSelected -- read: %i, write: %i, errors: %i" % (len(readable), len(writeable), len(errors))
 
             for peer in writeable:
                 print "Writing: " + str(peer)
-                peer.send_from_out_buffer()
+                status = peer.send_from_out_buffer()
+                if not status:
+                    all_peers.remove(peer)
 
             for peer in readable:
-                print "Reading: " + str(peer)
-                try:
-                    response = peer.sock.recv(1024)
-                    if not response:
-                        waiting_for_read.remove(peer)
-                        continue
-                except socket.error as e:
-                    print e
-                    continue
-                peer.in_buffer += response
-                status = peer.handle_in_buffer()
-                while status:
-                    if status == "DONE":
-                        self.sock.close()
-                        return
-                    status = peer.handle_in_buffer()
+                print "Reading: %s" % peer
+                status = peer.receive_message()
+                if not status:
+                    all_peers.remove(peer)
+                elif status == "DONE":
+                    self.sock.close()
+                    return
 
             if self.torrent_download.status() == "complete":
                 self.sock.close()

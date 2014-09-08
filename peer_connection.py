@@ -125,7 +125,7 @@ class PeerConnection(object):
                                 5 : self._parse_bitfield,
                                 7 : self._parse_piece }
 
-        if int(msg_id) in range(9):
+        if int(msg_id) in MESSAGE_ID_DICT:
             return MESSAGE_ID_DICT[msg_id](packet, length)
         else:
             print "++++++++++++++++++++ Message not implemented."
@@ -226,15 +226,21 @@ class PeerConnection(object):
             sent = self.sock.send(self.out_buffer)
             self.out_buffer = self.out_buffer[sent:]
             print "Sent %i bytes" % sent
-            return True
         except socket.error as e:
             print "Sent 0 bytes (" + repr(e) + ")"
-            return False
 
+    def receive_to_in_buffer(self):
+        ''' Receive to the in buffer of the peer and dispatch to handle_in_buffer'''
+        try:
+            response = peer.sock.recv(1024)
+            if not response:
+                return False
+        except socket.error as e:
+            print e
+            return True # what should we actually do here?
 
-
-
-
-
-
-
+        self.in_buffer += response
+        status = self.handle_in_buffer()
+        while status is True:
+            status = self.handle_in_buffer()
+        return status
