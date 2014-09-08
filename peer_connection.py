@@ -230,15 +230,13 @@ class PeerConnection(object):
     def receive_to_in_buffer(self):
         ''' Receive to the in buffer of the peer and dispatch to handle_in_buffer'''
         try:
-            response = peer.sock.recv(1024)
+            response = self.sock.recv(1024)
             if not response:
                 return False
-        except socket.error as e:
-            print e
-            return True # what should we actually do here?
-
-        self.in_buffer += response
-        status = self.handle_in_buffer()
-        while status is True:
+            self.in_buffer += response
             status = self.handle_in_buffer()
-        return status
+            while status is True:
+                status = self.handle_in_buffer()
+        except socket.error as e:
+            print "Receive failed (" + repr(e) + ")"
+        return True

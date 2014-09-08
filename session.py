@@ -19,7 +19,8 @@ class Session(object):
         self.client = client.Client()
         self.sock = 0
         self.host, self.port = self.meta.announce_url_and_port
-        self.torrent_download = torrent.Torrent(self.meta, temp_file)
+        self.temp_file = temp_file
+        self.torrent_download = torrent.Torrent(self.meta, self.temp_file)
         open(temp_file, 'w').close()
 
     def connect_to_tracker(self):
@@ -63,19 +64,16 @@ class Session(object):
                 print e
 
         while all_peers:
-
-            readable, writeable, errors = select.select(all_peers, all_peers, [])
-            print "\nSelected -- read: %i, write: %i, errors: %i" % (len(readable), len(writeable), len(errors))
+            readable, writeable, _ = select.select(all_peers, all_peers, [])
+            print "\nSelected -- read: %i, write: %i" % (len(readable), len(writeable))
 
             for peer in writeable:
                 print "Writing: " + str(peer)
-                status = peer.send_from_out_buffer()
-                if not status:
-                    all_peers.remove(peer)
+                peer.send_from_out_buffer()
 
             for peer in readable:
                 print "Reading: %s" % peer
-                status = peer.receive_message()
+                status = peer.receive_to_in_buffer()
                 if not status:
                     all_peers.remove(peer)
                 elif status == "DONE":
