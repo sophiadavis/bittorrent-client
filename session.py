@@ -123,7 +123,7 @@ class Session(object):
                 path = "../../" + self.meta.base_file_name
                 file_name = path_elements.pop()
                 for d in path_elements:
-                    path = os.path.join(path, dir)
+                    path = os.path.join(path, d)
                 
                 if not os.path.exists(path):
                     os.makedirs(path) 
