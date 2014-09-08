@@ -6,13 +6,14 @@ from collections import OrderedDict
 
 import bencoder
 from constants import POLITE_REQUEST_SIZE
+import message
 
 class MetainfoFile(object):
     ''' Represents information contained in a .torrent file. '''
 
     def __init__(self, file_name):
         # Text
-        self._bencoded_text = read_binary_file(file_name)
+        self._bencoded_text = message.read_binary_file(file_name)
         self._parsed_text = bencoder.decode(self._bencoded_text)[0]
         self._parsed_info_hash = self._parsed_text['info']
         self.bencoded_info_hash = bencoder.encode(self._parsed_info_hash) # turn into readonly property
@@ -73,9 +74,3 @@ class MetainfoFile(object):
         for piece_index in self.file_info_dict.keys():
             total_length += self.file_info_dict[piece_index][1]
         return total_length
-
-def read_binary_file(file_name):
-    ''' Reads bytes from given file, returns binary string '''
-    with open(file_name, "rb") as f:
-        data = f.read()
-    return data

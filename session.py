@@ -109,7 +109,7 @@ class Session(object):
 
                 current_location += length
 
-            os.remove(temp_filename)
+            os.remove(temp_filename)                
 
 def main():
     if len(sys.argv) < 3 or sys.argv[1][-8:] != ".torrent":
