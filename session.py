@@ -76,9 +76,6 @@ class Session(object):
                 status = peer.receive_to_in_buffer()
                 if not status:
                     all_peers.remove(peer)
-                elif status == "DONE":
-                    self.sock.close()
-                    return
 
             if self.torrent_download.status() == "complete":
                 self.sock.close()

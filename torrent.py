@@ -50,7 +50,10 @@ class Torrent(object):
         if not next_request:
             next_request = self.next_recycled_request()
             if not next_request:
-                return "DONE"
+                # Hack ~~
+                # If all blocks are complete or written, just re-request first block.
+                # (We're waiting for Session to close after next iteration of select loop)
+                return [0, 0, POLITE_REQUEST_SIZE] 
         self.requested.append(next_request)
         return next_request
 

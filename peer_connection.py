@@ -70,15 +70,11 @@ class PeerConnection(object):
     def _parse_choke(self, packet, length):
         self.status = 'choked'
         print '++++++++++++++++++++ choke'
-        return True
 
     def _parse_and_respond_to_unchoke(self, packet, length):
         self.status = 'unchoked'
         print '++++++++++++++++++++ unchoke'
         status = self._schedule_request()
-        if status == "DONE":
-            return "DONE"
-        return True
 
     def _parse_bitfield(self, packet, length):
         bitstr = bitstring.BitArray(bytes = packet[5 : length + 4])
@@ -115,7 +111,6 @@ class PeerConnection(object):
         self.num_outstanding_requests -= 1
         status = self._schedule_request()
         self.last_message_scheduled = "request"
-        return True
 
     def parse_and_update_status_from_message(self, packet, length, msg_id):
         MESSAGE_ID_DICT = {  0 : self._parse_choke,
@@ -125,7 +120,7 @@ class PeerConnection(object):
                                 7 : self._parse_piece }
 
         if int(msg_id) in MESSAGE_ID_DICT:
-            return MESSAGE_ID_DICT[msg_id](packet, length)
+            MESSAGE_ID_DICT[msg_id](packet, length)
         else:
             print "++++++++++++++++++++ Message not implemented."
 
@@ -153,12 +148,11 @@ class PeerConnection(object):
         self.out_buffer += interested_message
 
     def _schedule_request(self):
+        # Wait until peer has returned a requested block before requesting another.
         if self.num_outstanding_requests < 1:
             peer_has_piece = False
             while not peer_has_piece:
                 next = self.torrent_download.strategically_get_next_request()
-                if next == "DONE":
-                    return "DONE"
                 index, begin, length = next
                 peer_has_piece = self.pieces[index]
 
@@ -170,8 +164,8 @@ class PeerConnection(object):
     def handle_in_buffer(self):
         ''' Process first complete message (if one exists) in PeerConnection's incoming
                 message buffer. Remove bytes in this message from in-buffer.
-            Returns True if a complete message has been parsed, DONE if download is complete,
-                and False if buffer did not contain a complete message.'''
+            Returns True if a complete message has been parsed, and False 
+                if buffer did not contain a complete message.'''
 
         print "**** handle in buffer, length: %i\n" % len(self.in_buffer)
 
@@ -193,8 +187,6 @@ class PeerConnection(object):
         if self.status == 'unchoked':
             status = self._schedule_request()
             self.last_message_scheduled = "request"
-            if status == "DONE":
-                return "DONE"
 
         length = int(message.unpack_binary_string(">I", self.in_buffer[:4])[0])
         if len(self.in_buffer) < int(length) + 4:
@@ -206,10 +198,7 @@ class PeerConnection(object):
             return True
 
         msg_id = int(message.unpack_binary_string('>B', self.in_buffer[4])[0])
-
         status = self.parse_and_update_status_from_message(self.in_buffer[:length + 4], length, msg_id)
-        if status == "DONE":
-            return "DONE"
 
         self.in_buffer = self.in_buffer[length + 4:]
         return True
