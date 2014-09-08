@@ -96,7 +96,7 @@ class Session(object):
                 path = "../../" + self.meta.base_file_name
                 file_name = path_elements.pop()
                 for d in path_elements:
-                    path = os.path.join(path, dir)
+                    path = os.path.join(path, d)
 
                 if not os.path.exists(path):
                     os.makedirs(path)
@@ -121,7 +121,7 @@ def main():
         metainfo_filename = sys.argv[1]
         s = Session(metainfo_filename)
         s.get_torrent()
-        s.transfer_file_contents(temp_filename)
+        s.transfer_file_contents(s.temp_file)
 
 
 
