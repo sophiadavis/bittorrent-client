@@ -152,4 +152,4 @@ def open_socket_with_timeout(timeout, type = 'udp'):
         sys.exit()
 
 def generate_random_32_bit_int():
-    return random.getrandbits(31)
+    return random.getrandbits(31) # really?
