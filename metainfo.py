@@ -7,11 +7,6 @@ from collections import OrderedDict
 import bencoder
 from constants import POLITE_REQUEST_SIZE
 
-def main():
-    t = MetainfoFile('../../Wer ist wer bei Conny Van Ehlsing ... Gaijin PDF [mininova].torrent')
-    print t
-
-
 class MetainfoFile(object):
     ''' Represents information contained in a .torrent file. '''
 
