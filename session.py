@@ -38,12 +38,6 @@ class Session(object):
         response = self.client.send_packet(self.sock, self.host, self.port, announce_packet)
         return response
 
-    def check_status(self, status, failure):
-        ''' Generic error-handling. '''
-        if status < 0:
-            print "Session: " + failure
-            sys.exit(1)
-
     def get_torrent(self):
         ''' Coordinate entire file download process. '''
 
@@ -51,12 +45,10 @@ class Session(object):
         ANNOUNCE_ID = 1
 
         connection_response = self.connect_to_tracker()
-        connection_status = self.client.check_packet(CONNECT_ID, connection_response)
-        self.check_status(connection_status, "connect")
+        self.client.check_packet(CONNECT_ID, connection_response)
 
         announce_response = self.announce()
-        announce_status = self.client.check_packet(ANNOUNCE_ID, announce_response)
-        self.check_status(announce_status, "announce")
+        self.client.check_packet(ANNOUNCE_ID, announce_response)
 
         peer_list = self.client.get_list_of_peers(announce_response)
 

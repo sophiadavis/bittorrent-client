@@ -12,6 +12,9 @@ import time
 import message
 import peer_connection
 
+class ClientException(Exception):
+    pass
+
 class Client(object):
     ''' Manages connection and communication to BitTorrent tracker'''
 
@@ -57,26 +60,21 @@ class Client(object):
         action_recd = message.unpack_binary_string('>i', response[:4])[0]
 
         if (action_recd != action_sent):
-            print "Action error!"
-            return -1
+            raise ClientException("Action error!")
 
         transaction_id_recd = message.unpack_binary_string('>i', response[4:8])[0]
 
         if self.current_transaction_id != transaction_id_recd:
-            print 'Transaction id mismatch!'
-            return -1
+            raise ClientException("Transaction id does not match")
         else:
             if action_recd == 0:
                 print 'Connect packet received -- Resetting connection id.\n'
                 connection_id_recd = message.unpack_binary_string('>q', response[8:])[0]
                 self.connection_id = connection_id_recd
-                return 0
             elif action_recd == 1:
                 print 'Announce packet received.\n'
-                return 0
             else:
-                print 'Action not implemented'
-                return -1
+                raise ClientException("Action not implemented")
 
     def make_announce_packet(self, total_file_length, bencoded_info_hash):
         ''' Creates a UDP-protocol announce packet to send to tracker.'''
@@ -113,7 +111,7 @@ class Client(object):
             in (ip, port) format. '''
         num_bytes = len(response)
         if num_bytes < 20:
-            print "Error in getting peers"
+            raise ClientException("Error in getting peers")
         else:
             interval, num_leechers, num_peers = message.unpack_binary_string('>iii', response[8:20])
             peers = []
